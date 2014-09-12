@@ -1,0 +1,42 @@
+GIT
+  remote: git://github.com/mthssdrbrg/kafka-jars.git
+  revision: ceb7ccb638318c39a1b8bad84854bb1313907942
+  specs:
+    kafka-jars (0.8.1.1.pre0-java)
+      metrics-core-jars (~> 2.1.2)
+      scala-library-jars (~> 2.9.2)
+      slf4j-jars (~> 1, >= 1.6.2)
+      snappy-jars (~> 1.1.0.1)
+      zookeeper-jars (~> 3.4.6)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    diff-lcs (1.2.5)
+    metrics-core-jars (2.1.2-java)
+      slf4j-jars (~> 1)
+    rspec (3.0.0)
+      rspec-core (~> 3.0.0)
+      rspec-expectations (~> 3.0.0)
+      rspec-mocks (~> 3.0.0)
+    rspec-core (3.0.4)
+      rspec-support (~> 3.0.0)
+    rspec-expectations (3.0.4)
+      diff-lcs (>= 1.2.0, < 2.0)
+      rspec-support (~> 3.0.0)
+    rspec-mocks (3.0.4)
+      rspec-support (~> 3.0.0)
+    rspec-support (3.0.4)
+    scala-library-jars (2.9.2-java)
+    slf4j-jars (1.7.7-java)
+    snappy-jars (1.1.0.1.2-java)
+    thor (0.19.1)
+    zookeeper-jars (3.4.6-java)
+
+PLATFORMS
+  java
+
+DEPENDENCIES
+  kafka-jars!
+  rspec
+  thor
