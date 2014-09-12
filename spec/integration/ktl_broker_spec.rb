@@ -43,14 +43,14 @@ describe 'bin/ktl broker' do
     end
 
     let :data do
-      d = Kafka::Utils::ZkUtils.read_data_maybe_null(ktl_zk_client, Kafka::Utils::ZkUtils.reassign_partitions_path)._1.get
+      d = Kafka::Utils::ZkUtils.read_data(ktl_zk_client, Kafka::Utils::ZkUtils.reassign_partitions_path)._1
       d = JSON.parse(d)
       d
     end
 
     before do
       %w[topic1 topic2].each do |t|
-        silence_scala { run(['topic', 'create'], [t] + zk_args) }
+        silence { run(['topic', 'create'], [t] + zk_args) }
         partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(t)
         Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, partitions_path, '')
         state_path = partitions_path + '/0/state'
