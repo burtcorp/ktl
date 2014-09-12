@@ -58,6 +58,11 @@ module Kafka
       command = ReassignPartitionsCommand.new(zk_client, migration_plan)
       command.reassign_partitions
     end
+
+    def self.preferred_replica(zk_client, topics_partitions)
+      command = PreferredReplicaLeaderElectionCommand.new(zk_client, topics_partitions)
+      command.move_leader_to_preferred_replica
+    end
   end
 
   module Common

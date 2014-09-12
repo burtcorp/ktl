@@ -16,6 +16,15 @@ module Ktl
       zk_client.close
     end
 
+    desc 'preferred-replica', 'perform preferred replica leader elections'
+    def preferred_replica(regexp='.*')
+      regexp = Regexp.new(regexp)
+      topics_partitions = all_topics_partitions.filter { |tp| !!tp.topic.match(regexp) }.to_set
+      say 'performing preferred replica leader election on %d topic-partition combinations' % topics_partitions.size
+      Kafka::Admin.preferred_replica(zk_client, topics_partitions)
+      zk_client.close
+    end
+
     private
 
     def all_topics_partitions
