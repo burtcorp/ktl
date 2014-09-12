@@ -53,5 +53,16 @@ module Kafka
       end
       TopicCommandOptions.new(options)
     end
+
+    def self.reassign_partitions(zk_client, migration_plan)
+      command = ReassignPartitionsCommand.new(zk_client, migration_plan)
+      command.reassign_partitions
+    end
   end
+
+  module Common
+    include_package 'kafka.common'
+  end
+
+  TopicAndPartition = Common::TopicAndPartition
 end
