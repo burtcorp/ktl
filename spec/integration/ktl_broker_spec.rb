@@ -111,4 +111,51 @@ describe 'bin/ktl broker' do
       end
     end
   end
+
+  describe 'balance' do
+    let :partitions do
+      zk_path = Kafka::Utils::ZkUtils.reassign_partitions_path
+      d = Kafka::Utils::ZkUtils.read_data(ktl_zk_client, zk_path)._1
+      d = JSON.parse(d)
+      d['partitions']
+    end
+
+    before do
+      Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk_client, 1, 'localhost', 9093, 1, 57476)
+      %w[topic1 topic2].each do |t|
+        silence { run(['topic', 'create'], [t, '--partitions', '2', '--replication-factor', '2'] + zk_args) }
+        partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(t)
+        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, partitions_path, '')
+        [0, 1].each do |p|
+          state_path = partitions_path + '/%d/state' % p
+          state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0, 1]}
+          Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, state_path, state.to_json)
+        end
+      end
+    end
+
+    it 'kick-starts a partition reassignment command' do
+      silence { run(['broker', 'balance'], zk_args) }
+      expect(partitions).to match [
+        a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [1, 0]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 1]),
+        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1])
+      ]
+    end
+
+    context 'when given a topic regexp' do
+      it 'only includes matched topics' do
+        silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+        expect(partitions).to match [
+          a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
+          a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1])
+        ]
+        expect(partitions).to_not match [
+          a_hash_including('topic' => 'topic2', 'partition' => 1),
+          a_hash_including('topic' => 'topic2', 'partition' => 0)
+        ]
+      end
+    end
+  end
 end

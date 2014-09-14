@@ -21,6 +21,10 @@ module Scala
   module Collection
     include_package 'scala.collection'
 
+    module Mutable
+      include_package 'scala.collection.mutable'
+    end
+
     module Immutable
       include_package 'scala.collection.immutable'
     end
@@ -62,6 +66,10 @@ module Kafka
     def self.preferred_replica(zk_client, topics_partitions)
       command = PreferredReplicaLeaderElectionCommand.new(zk_client, topics_partitions)
       command.move_leader_to_preferred_replica
+    end
+
+    def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=0, partition=0)
+      AdminUtils.assign_replicas_to_brokers(brokers, partitions, repl_factor, index, partition)
     end
   end
 
