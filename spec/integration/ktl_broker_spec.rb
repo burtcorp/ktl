@@ -24,15 +24,43 @@ describe 'bin/ktl broker' do
     Ktl::Cli.start([command, argv].flatten)
   end
 
-  before do
+  def fetch_json(zk, path, key=nil)
+    d = Kafka::Utils::ZkUtils.read_data(zk, path)._1
+    d = JSON.parse(d)
+    key ? d[key] : d
+  end
+
+  def register_broker(zk, id)
+    Kafka::Utils::ZkUtils.register_broker_in_zk(zk, id, 'localhost', 9092, 1, 57476)
+  end
+
+  def clear_zk_chroot
     Kafka::Utils::ZkUtils.delete_path_recursive(zk_client, '/ktl-test')
+  end
+
+  def setup_zk_chroot
+    clear_zk_chroot
     Kafka::Utils::ZkUtils.make_sure_persistent_path_exists(zk_client, '/ktl-test')
     Kafka::Utils::ZkUtils.setup_common_paths(ktl_zk_client)
-    Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk_client, 0, 'localhost', 9092, 1, 57475)
+  end
+
+  def create_partitions(zk, name, partitions=1)
+    partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(name)
+    Kafka::Utils::ZkUtils.create_persistent_path(zk, partitions_path, '')
+    partitions.times.map do |i|
+      state_path = [partitions_path, i, 'state'].join('/')
+      state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0, 1]}
+      Kafka::Utils::ZkUtils.create_persistent_path(zk, state_path, state.to_json)
+    end
+  end
+
+  before do
+    setup_zk_chroot
+    register_broker(ktl_zk_client, 0)
   end
 
   after do
-    Kafka::Utils::ZkUtils.delete_path_recursive(zk_client, '/ktl-test')
+    clear_zk_chroot
     zk_client.close
     ktl_zk_client.close
   end
@@ -42,22 +70,17 @@ describe 'bin/ktl broker' do
       %w[--from 0 --to 1]
     end
 
-    let :data do
-      d = Kafka::Utils::ZkUtils.read_data(ktl_zk_client, Kafka::Utils::ZkUtils.reassign_partitions_path)._1
-      d = JSON.parse(d)
-      d
+    let :partitions do
+      path = Kafka::Utils::ZkUtils.reassign_partitions_path
+      fetch_json(ktl_zk_client, path, 'partitions')
     end
 
     before do
       %w[topic1 topic2].each do |t|
         silence { run(['topic', 'create'], [t] + zk_args) }
-        partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(t)
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, partitions_path, '')
-        state_path = partitions_path + '/0/state'
-        state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0]}
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, state_path, state.to_json)
+        create_partitions(ktl_zk_client, t)
       end
-      Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk_client, 1, 'localhost', 9093, 1, 57476)
+      register_broker(ktl_zk_client, 1)
     end
 
     before do
@@ -65,72 +88,59 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
-      expect(data).to have_key('partitions')
-      partition_data = data['partitions']
-      first, last = partition_data
-      expect(first).to include('topic' => 'topic1')
-      expect(first).to include('replicas' => [1])
-      expect(last).to include('topic' => 'topic2')
-      expect(last).to include('replicas' => [1])
+      expect(partitions).to match [
+        a_hash_including('topic' => 'topic1', 'replicas' => [1]),
+        a_hash_including('topic' => 'topic2', 'replicas' => [1])
+      ]
     end
   end
 
   describe 'preferred-replica' do
-    let :data do
-      zk_path = Kafka::Utils::ZkUtils.preferred_replica_leader_election_path
-      d = Kafka::Utils::ZkUtils.read_data(ktl_zk_client, zk_path)._1
-      d = JSON.parse(d)
-      d
+    let :partitions do
+      path = Kafka::Utils::ZkUtils.preferred_replica_leader_election_path
+      fetch_json(ktl_zk_client, path, 'partitions')
     end
 
     before do
-      Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk_client, 1, 'localhost', 9093, 1, 57476)
+      register_broker(ktl_zk_client, 1)
       %w[topic1 topic2].each do |t|
         silence { run(['topic', 'create'], [t] + zk_args) }
-        partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(t)
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, partitions_path, '')
-        state_path = partitions_path + '/0/state'
-        state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0, 1]}
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, state_path, state.to_json)
+        create_partitions(ktl_zk_client, t)
       end
     end
 
     it 'kick-starts a preferred replica command' do
       silence { run(['broker', 'preferred-replica'], zk_args) }
-      partitions = data['partitions']
-      expect(partitions).to include({'topic' => 'topic1', 'partition' => 0})
-      expect(partitions).to include({'topic' => 'topic2', 'partition' => 0})
+      expect(partitions).to match [
+        a_hash_including('topic' => 'topic1', 'partition' => 0),
+        a_hash_including('topic' => 'topic2', 'partition' => 0)
+      ]
     end
 
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         silence { run(['broker', 'preferred-replica', '^topic1$'], zk_args) }
-        partitions = data['partitions']
-        expect(partitions).to include({'topic' => 'topic1', 'partition' => 0})
-        expect(partitions).to_not include({'topic' => 'topic2', 'partition' => 0})
+        expect(partitions).to match [
+          a_hash_including('topic' => 'topic1', 'partition' => 0)
+        ]
+        expect(partitions).to_not match [
+          a_hash_including('topic' => 'topic2', 'partition' => 0)
+        ]
       end
     end
   end
 
   describe 'balance' do
     let :partitions do
-      zk_path = Kafka::Utils::ZkUtils.reassign_partitions_path
-      d = Kafka::Utils::ZkUtils.read_data(ktl_zk_client, zk_path)._1
-      d = JSON.parse(d)
-      d['partitions']
+      path = Kafka::Utils::ZkUtils.reassign_partitions_path
+      fetch_json(ktl_zk_client, path, 'partitions')
     end
 
     before do
-      Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk_client, 1, 'localhost', 9093, 1, 57476)
+      register_broker(ktl_zk_client, 1)
       %w[topic1 topic2].each do |t|
         silence { run(['topic', 'create'], [t, '--partitions', '2', '--replication-factor', '2'] + zk_args) }
-        partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(t)
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, partitions_path, '')
-        [0, 1].each do |p|
-          state_path = partitions_path + '/%d/state' % p
-          state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0, 1]}
-          Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk_client, state_path, state.to_json)
-        end
+        create_partitions(ktl_zk_client, t, 2)
       end
     end
 
