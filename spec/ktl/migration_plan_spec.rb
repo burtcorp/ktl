@@ -22,9 +22,7 @@ module Ktl
     end
 
     let :topics_partitions do
-      l = double(:list)
-      allow(l).to receive(:foreach).and_yield(owned).and_yield(not_owned)
-      l
+      scala_list([owned, not_owned])
     end
 
     let :old_leader do

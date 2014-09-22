@@ -23,39 +23,27 @@ module Ktl
 
     describe '#generate' do
       let :topics do
-        t = Scala::Collection::Mutable::MutableList.empty
-        t.send('+=', 'topic1')
-        t.send('+=', 'topic2')
-        t
+        scala_list(%w[topic1 topic2])
       end
 
       let :brokers do
-        b = Scala::Collection::Mutable::MutableList.empty
-        b.send('+=', 0.to_java(:Integer))
-        b.send('+=', 1.to_java(:Integer))
-        b
+        scala_int_list([0, 1])
       end
 
       let :replica_assignments do
         ra = Scala::Collection::Mutable::HashMap.new
-        ra.put(Kafka::TopicAndPartition.new('topic1', 0.to_java(:Integer)), [0, 1].map { |i| java.lang.Integer.new(i) })
-        ra.put(Kafka::TopicAndPartition.new('topic1', 1.to_java(:Integer)), [0, 1].map { |i| java.lang.Integer.new(i) })
-        ra.put(Kafka::TopicAndPartition.new('topic2', 0.to_java(:Integer)), [1, 0].map { |i| java.lang.Integer.new(i) })
-        ra.put(Kafka::TopicAndPartition.new('topic2', 1.to_java(:Integer)), [1, 0].map { |i| java.lang.Integer.new(i) })
+        ra.put(Kafka::TopicAndPartition.new('topic1', to_int(0)), scala_int_list([0, 1]))
+        ra.put(Kafka::TopicAndPartition.new('topic1', to_int(1)), scala_int_list([0, 1]))
+        ra.put(Kafka::TopicAndPartition.new('topic2', to_int(0)), scala_int_list([1, 0]))
+        ra.put(Kafka::TopicAndPartition.new('topic2', to_int(1)), scala_int_list([1, 0]))
         ra
       end
 
       let :topics_partitions do
         tps = Scala::Collection::Mutable::HashMap.new
-        tps.put('topic1', [0, 1].map { |i| java.lang.Integer.new(i) })
-        tps.put('topic2', [0, 1].map { |i| java.lang.Integer.new(i) })
+        tps.put('topic1', scala_int_list([0, 1]))
+        tps.put('topic2', scala_int_list([0, 1]))
         tps
-      end
-
-      def make_scala_list(arr)
-        l = Scala::Collection::Mutable::MutableList.empty
-        arr.each { |i| l.send('+=', i) }
-        l
       end
 
       before do
@@ -79,10 +67,10 @@ module Ktl
         generated_plan = plan.generate
         expect(generated_plan).to be_a(Scala::Collection::Immutable::Map)
         expect(generated_plan.size).to eq(4)
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(make_scala_list([1, 0]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(make_scala_list([0, 1]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(make_scala_list([0, 1]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(make_scala_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(scala_int_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(scala_int_list([0, 1]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(scala_int_list([0, 1]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(scala_int_list([1, 0]))
       end
 
       it 'returns an (almost) deterministic assignment plan' do
@@ -102,14 +90,12 @@ module Ktl
         end
 
         let :filtered_topics do
-          t = Scala::Collection::Mutable::MutableList.empty
-          t.send('+=', 'topic1')
-          t
+          scala_list(%w[topic1])
         end
 
         let :topics_partitions do
           tps = Scala::Collection::Mutable::HashMap.new
-          tps.put('topic1', [0, 1].map { |i| java.lang.Integer.new(i) })
+          tps.put('topic1', scala_int_list([0, 1]))
           tps
         end
 
