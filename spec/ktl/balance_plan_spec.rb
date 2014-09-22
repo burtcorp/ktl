@@ -52,6 +52,12 @@ module Ktl
         tps
       end
 
+      def make_scala_list(arr)
+        l = Scala::Collection::Mutable::MutableList.empty
+        arr.each { |i| l.send('+=', i) }
+        l
+      end
+
       before do
         allow(zk_utils).to receive(:get_all_topics).with(zk_client).and_return(topics)
         allow(zk_utils).to receive(:get_partitions_for_topics).with(zk_client, topics).and_return(topics_partitions)
@@ -72,11 +78,20 @@ module Ktl
       it 'returns a Scala Map with assignments' do
         generated_plan = plan.generate
         expect(generated_plan).to be_a(Scala::Collection::Immutable::Map)
+        expect(generated_plan.size).to eq(4)
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(make_scala_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(make_scala_list([0, 1]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(make_scala_list([0, 1]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(make_scala_list([1, 0]))
+      end
+
+      it 'returns an (almost) deterministic assignment plan' do
+        first_plan = plan.generate
+        second_plan = described_class.new(zk_client, filter, zk_utils).generate
         topics.foreach do |t|
           [0, 1].each do |p|
             tp = Kafka::TopicAndPartition.new(t, p)
-            expect(generated_plan.contains?(tp)).to be true
-            expect(generated_plan[tp].size).to be > 1
+            expect(first_plan[tp]).to eq(second_plan[tp])
           end
         end
       end

@@ -149,8 +149,8 @@ describe 'bin/ktl broker' do
       expect(partitions).to match [
         a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [1, 0]),
         a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 1]),
-        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
-        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1])
+        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 1]),
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1, 0])
       ]
     end
 

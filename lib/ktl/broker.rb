@@ -28,7 +28,7 @@ module Ktl
     desc 'balance', 'balance topics and partitions between brokers'
     def balance(regexp='.*')
       plan = BalancePlan.new(zk_client, regexp).generate
-      say 'reassigning %d topic-partitions combinations' % plan.size
+      say 'reassigning %d partitions' % plan.size
       Kafka::Admin.reassign_partitions(zk_client, plan)
       zk_client.close
     end
