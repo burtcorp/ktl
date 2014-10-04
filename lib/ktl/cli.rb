@@ -7,5 +7,8 @@ module Ktl
 
     desc 'topic SUBCOMMAND ...ARGS', 'commands for managing topics'
     subcommand 'topic', Topic
+
+    desc 'consumer SUBCOMMAND ...ARGS', 'commands for managing consumers'
+    subcommand 'consumer', Consumer
   end
 end

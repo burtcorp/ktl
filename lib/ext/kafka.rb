@@ -78,4 +78,8 @@ module Kafka
   end
 
   TopicAndPartition = Common::TopicAndPartition
+
+  module Tools
+    include_package 'kafka.tools'
+  end
 end
