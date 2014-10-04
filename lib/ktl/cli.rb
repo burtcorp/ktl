@@ -10,5 +10,8 @@ module Ktl
 
     desc 'consumer SUBCOMMAND ...ARGS', 'commands for managing consumers'
     subcommand 'consumer', Consumer
+
+    desc 'cluster SUBCOMMAND ...ARGS', 'commands for managing cluster(s)'
+    subcommand 'cluster', Cluster
   end
 end
