@@ -89,4 +89,16 @@ describe 'bin/ktl topic' do
       expect(partitions.size).to eq(2)
     end
   end
+
+  describe 'delete' do
+    before do
+      silence { run(['topic', 'create'], %w[topic1 --partitions 1 --replication-factor 2] + zk_args) }
+    end
+
+    it 'creates a delete marker for given topic' do
+      capture { run(['topic', 'delete'], %w[topic1] + zk_args) }
+      delete_path = Kafka::Utils::ZkUtils.get_delete_topic_path('topic1')
+      expect(ktl_zk.exists?(delete_path)).to be true
+    end
+  end
 end

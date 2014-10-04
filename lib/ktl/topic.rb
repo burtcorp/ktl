@@ -34,6 +34,22 @@ module Ktl
       zk_client.close
     end
 
+    desc 'delete', 'delete topics matching given regexp'
+    def delete(regexp)
+      topics = Kafka::Utils::ZkUtils.get_all_topics(zk_client)
+      topics = topics.filter { |t| !!t.match(regexp) }
+      say 'about to delete %d topics' % topics.size
+      topics.foreach do |topic|
+        begin
+          Kafka::Admin::AdminUtils.delete_topic(zk_client, topic)
+        rescue => e
+          message = 'Failed to delete %s due to %s' % [topic, e.message]
+          say message, :yellow
+        end
+      end
+      zk_client.close
+    end
+
     private
 
     def zk_client
