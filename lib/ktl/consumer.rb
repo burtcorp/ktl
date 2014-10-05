@@ -1,9 +1,7 @@
 # encoding: utf-8
 
 module Ktl
-  class Consumer < Thor
-    class_option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-
+  class Consumer < Command
     desc 'lag', 'check lag of a consumer group'
     option :topics, type: :array, aliases: %w[-t], default: [], desc: 'list of topics to include (or all if none given)'
     def lag(group_name)

@@ -6,7 +6,7 @@ require 'spec_helper'
 module Ktl
   describe MigrationPlan do
     let :plan do
-      described_class.new(zk_client, topics_partitions, old_leader, new_leader, zk_utils).generate
+      described_class.new(zk_client, old_leader, new_leader).generate
     end
 
     let :zk_client do
@@ -14,14 +14,14 @@ module Ktl
     end
 
     let :owned do
-      Kafka::Common::TopicAndPartition.new('test-topic-1', 0)
+      Kafka::TopicAndPartition.new('test-topic-1', 0)
     end
 
     let :not_owned do
-      Kafka::Common::TopicAndPartition.new('test-topic-1', 1)
+      Kafka::TopicAndPartition.new('test-topic-1', 1)
     end
 
-    let :topics_partitions do
+    let :partitions do
       scala_list([owned, not_owned])
     end
 
@@ -39,15 +39,16 @@ module Ktl
 
     describe '#generate' do
       before do
-        allow(zk_utils).to receive(:get_replicas_for_partition).with(zk_client, 'test-topic-1', 0)
+        allow(zk_client).to receive(:all_partitions).and_return(partitions)
+        allow(zk_client).to receive(:replicas_for_partition).with('test-topic-1', 0)
           .and_return(FakeSet.new([0, 2]))
-        allow(zk_utils).to receive(:get_replicas_for_partition).with(zk_client, 'test-topic-1', 1)
+        allow(zk_client).to receive(:replicas_for_partition).with('test-topic-1', 1)
           .and_return(FakeSet.new([2, 1]))
       end
 
       it 'returns an object with topic-partitions <-> new AR mappings' do
         f = plan.first
-        expect(f._1).to be_a(Kafka::Common::TopicAndPartition)
+        expect(f._1).to be_a(Kafka::TopicAndPartition)
         expect(f._2).to be_a(Array)
       end
 

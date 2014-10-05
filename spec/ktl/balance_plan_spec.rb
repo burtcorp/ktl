@@ -6,7 +6,7 @@ require 'spec_helper'
 module Ktl
   describe BalancePlan do
     let :plan do
-      described_class.new(zk_client, filter, zk_utils)
+      described_class.new(zk_client, filter)
     end
 
     let :zk_client do
@@ -15,10 +15,6 @@ module Ktl
 
     let :filter do
       '.*'
-    end
-
-    let :zk_utils do
-      double(:zk_utils)
     end
 
     describe '#generate' do
@@ -47,20 +43,20 @@ module Ktl
       end
 
       before do
-        allow(zk_utils).to receive(:get_all_topics).with(zk_client).and_return(topics)
-        allow(zk_utils).to receive(:get_partitions_for_topics).with(zk_client, topics).and_return(topics_partitions)
-        allow(zk_utils).to receive(:get_replica_assignment_for_topics).with(zk_client, topics).and_return(replica_assignments)
-        allow(zk_utils).to receive(:get_sorted_broker_list).with(zk_client).and_return(brokers)
+        allow(zk_client).to receive(:all_topics).and_return(topics)
+        allow(zk_client).to receive(:partitions_for_topics).with(topics).and_return(topics_partitions)
+        allow(zk_client).to receive(:replica_assignment_for_topics).with(topics).and_return(replica_assignments)
+        allow(zk_client).to receive(:broker_ids).and_return(brokers)
       end
 
       it 'fetches partitions for topics' do
         plan.generate
-        expect(zk_utils).to have_received(:get_partitions_for_topics).with(zk_client, topics)
+        expect(zk_client).to have_received(:partitions_for_topics).with(topics)
       end
 
       it 'fetches replica assignments for topics' do
         plan.generate
-        expect(zk_utils).to have_received(:get_replica_assignment_for_topics).with(zk_client, topics)
+        expect(zk_client).to have_received(:replica_assignment_for_topics).with(topics)
       end
 
       it 'returns a Scala Map with assignments' do
@@ -75,7 +71,7 @@ module Ktl
 
       it 'returns an (almost) deterministic assignment plan' do
         first_plan = plan.generate
-        second_plan = described_class.new(zk_client, filter, zk_utils).generate
+        second_plan = described_class.new(zk_client, filter).generate
         topics.foreach do |t|
           [0, 1].each do |p|
             tp = Kafka::TopicAndPartition.new(t, p)
@@ -100,8 +96,8 @@ module Ktl
         end
 
         before do
-          allow(zk_utils).to receive(:get_partitions_for_topics).with(zk_client, filtered_topics).and_return(topics_partitions)
-          allow(zk_utils).to receive(:get_replica_assignment_for_topics).with(zk_client, filtered_topics).and_return(replica_assignments)
+          allow(zk_client).to receive(:partitions_for_topics).with(filtered_topics).and_return(topics_partitions)
+          allow(zk_client).to receive(:replica_assignment_for_topics).with(filtered_topics).and_return(replica_assignments)
         end
 
         it 'only includes filtered topics' do

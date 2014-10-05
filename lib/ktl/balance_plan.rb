@@ -2,18 +2,17 @@
 
 module Ktl
   class BalancePlan
-    def initialize(zk_client, filter, zk_utils=Kafka::Utils::ZkUtils)
+    def initialize(zk_client, filter)
       @zk_client = zk_client
       @filter = Regexp.new(filter)
-      @zk_utils = zk_utils
     end
 
     def generate
-      all_topics = @zk_utils.get_all_topics(@zk_client)
+      all_topics = @zk_client.all_topics
       topics = all_topics.filter { |t| !!t.match(@filter) }
-      topics_partitions = @zk_utils.get_partitions_for_topics(@zk_client, topics)
-      replica_assignments = @zk_utils.get_replica_assignment_for_topics(@zk_client, topics)
-      brokers = @zk_utils.get_sorted_broker_list(@zk_client)
+      topics_partitions = @zk_client.partitions_for_topics(topics)
+      replica_assignments = @zk_client.replica_assignment_for_topics(topics)
+      brokers = @zk_client.broker_ids
       reassignment_plan = Scala::Collection::Map.empty
       start_index = 0
       topics_partitions.foreach do |tp|

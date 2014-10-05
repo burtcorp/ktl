@@ -9,6 +9,7 @@ module Ktl
   end
 end
 
+require 'ktl/command'
 require 'ktl/broker'
 require 'ktl/balance_plan'
 require 'ktl/cluster'

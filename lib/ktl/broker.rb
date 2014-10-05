@@ -1,46 +1,41 @@
 # encoding: utf-8
 
 module Ktl
-  class Broker < Thor
-    class_option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-
-    desc 'migrate', 'migrate topics from one broker to another'
+  class Broker < Command
+    desc 'migrate', 'migrate partitions from one broker to another'
     option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'broker id of old leader'
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'broker id of new leader'
     def migrate
-      old_leader, new_leader = options.values_at(:from, :to)
-      migration_plan = MigrationPlan.new(zk_client, all_topics_partitions, old_leader, new_leader)
-      migration_plan = migration_plan.generate
-      say 'moving %d topics and partitions from %d to %d' % [migration_plan.size, old_leader, new_leader]
-      Kafka::Admin.reassign_partitions(zk_client, migration_plan)
-      zk_client.close
+      with_zk_client do |zk_client|
+        old_leader, new_leader = options.values_at(:from, :to)
+        migration_plan = MigrationPlan.new(zk_client, old_leader, new_leader).generate
+        say 'moving %d partitions from %d to %d' % [migration_plan.size, old_leader, new_leader]
+        Kafka::Admin.reassign_partitions(zk_client.raw_client, migration_plan)
+      end
     end
 
     desc 'preferred-replica', 'perform preferred replica leader elections'
     def preferred_replica(regexp='.*')
-      regexp = Regexp.new(regexp)
-      topics_partitions = all_topics_partitions.filter { |tp| !!tp.topic.match(regexp) }.to_set
-      say 'performing preferred replica leader election on %d topic-partition combinations' % topics_partitions.size
-      Kafka::Admin.preferred_replica(zk_client, topics_partitions)
-      zk_client.close
+      with_zk_client do |zk_client|
+        regexp = Regexp.new(regexp)
+        partitions = zk_client.all_partitions
+        partitions = partitions.filter { |tp| !!tp.topic.match(regexp) }.to_set
+        if partitions.size > 0
+          say 'performing preferred replica leader election on %d partitions' % partitions.size
+          Kafka::Admin.preferred_replica(zk_client.raw_client, partitions)
+        else
+          say 'no topics matched %s' % regexp.inspect
+        end
+      end
     end
 
     desc 'balance', 'balance topics and partitions between brokers'
     def balance(regexp='.*')
-      plan = BalancePlan.new(zk_client, regexp).generate
-      say 'reassigning %d partitions' % plan.size
-      Kafka::Admin.reassign_partitions(zk_client, plan)
-      zk_client.close
-    end
-
-    private
-
-    def all_topics_partitions
-      @all_topics_partitions ||= Kafka::Utils::ZkUtils.get_all_partitions(zk_client).iterator
-    end
-
-    def zk_client
-      @zk_client ||= Kafka::Utils.new_zk_client(options.zookeeper)
+      with_zk_client do |zk_client|
+        plan = BalancePlan.new(zk_client, regexp).generate
+        say 'reassigning %d partitions' % plan.size
+        Kafka::Admin.reassign_partitions(zk_client.raw_client, plan)
+      end
     end
   end
 end
