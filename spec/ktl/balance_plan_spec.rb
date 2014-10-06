@@ -63,10 +63,10 @@ module Ktl
         generated_plan = plan.generate
         expect(generated_plan).to be_a(Scala::Collection::Immutable::Map)
         expect(generated_plan.size).to eq(4)
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(scala_int_list([1, 0]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(scala_int_list([0, 1]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(scala_int_list([0, 1]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(scala_int_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(scala_int_list([0, 1]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(scala_int_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(scala_int_list([1, 0]))
+        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(scala_int_list([0, 1]))
       end
 
       it 'returns an (almost) deterministic assignment plan' do

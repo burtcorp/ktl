@@ -10,12 +10,13 @@ module Ktl
     def generate
       all_topics = @zk_client.all_topics
       topics = all_topics.filter { |t| !!t.match(@filter) }
-      topics_partitions = @zk_client.partitions_for_topics(topics)
+      topics_partitions = ScalaEnumerable.new(@zk_client.partitions_for_topics(topics))
+      topics_partitions = topics_partitions.sort_by(&:_1)
       replica_assignments = @zk_client.replica_assignment_for_topics(topics)
       brokers = @zk_client.broker_ids
       reassignment_plan = Scala::Collection::Map.empty
       start_index = 0
-      topics_partitions.foreach do |tp|
+      topics_partitions.each do |tp|
         topic = tp._1
         partitions = tp._2
         replicas = replica_assignments[Kafka::TopicAndPartition.new(topic, partitions.first)]
