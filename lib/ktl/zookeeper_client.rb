@@ -61,16 +61,15 @@ module Ktl
 
     def request(method, input)
       chunk_size = [(input.size.to_f / CONCURRENCY).round, 1].max
-      groups = input.grouped(chunk_size).to_seq
-      futures = []
-      groups.foreach do |slice|
-        futures << @submit.call { @utils.send(method, @client, slice) }
+      groups = ScalaEnumerable.new(input.grouped(chunk_size).to_seq)
+      futures = groups.map do |slice|
+        @submit.call { @utils.send(method, @client, slice) }
       end
       merge(futures.map(&:get))
     end
 
     def merge(results)
-      result = Scala::Collection::Mutable::HashMap.new
+      result = Scala::Collection::Map.empty
       results.reduce(result) do |acc, v|
         acc.send('++', v)
       end
