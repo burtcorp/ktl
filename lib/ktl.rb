@@ -7,18 +7,6 @@ module Ktl
   module JavaConcurrent
     include_package 'java.util.concurrent'
   end
-
-  class ScalaEnumerable
-    include Enumerable
-
-    def initialize(underlying)
-      @underlying = underlying
-    end
-
-    def each(&block)
-      @underlying.foreach(&block)
-    end
-  end
 end
 
 require 'ktl/command'

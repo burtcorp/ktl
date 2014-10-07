@@ -10,8 +10,8 @@ module Ktl
 
     def generate
       plan = Scala::Collection::Map.empty
-      partitions = @zk_client.all_partitions
-      partitions.foreach do |tp|
+      partitions = ScalaEnumerable.new(@zk_client.all_partitions)
+      partitions.each do |tp|
         replicas = @zk_client.replicas_for_partition(tp.topic, tp.partition)
         if replicas.contains?(@old_leader)
           index = replicas.index_of(@old_leader)

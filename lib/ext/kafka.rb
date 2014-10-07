@@ -16,6 +16,14 @@ java_import 'org.I0Itec.zkclient.ZkClient'
 module Scala
   java_import 'scala.Tuple2'
 
+  class Tuple2
+    alias_method :first, :_1
+    alias_method :last, :_2
+
+    def elements
+      [first, last]
+    end
+  end
   Tuple = Tuple2
 
   module Collection
@@ -28,6 +36,18 @@ module Scala
     module Immutable
       include_package 'scala.collection.immutable'
     end
+  end
+end
+
+class ScalaEnumerable
+  include Enumerable
+
+  def initialize(underlying)
+    @underlying = underlying
+  end
+
+  def each(&block)
+    @underlying.foreach(&block)
   end
 end
 
@@ -69,7 +89,8 @@ module Kafka
     end
 
     def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=0, partition=0)
-      AdminUtils.assign_replicas_to_brokers(brokers, partitions, repl_factor, index, partition)
+      assignment = AdminUtils.assign_replicas_to_brokers(brokers, partitions, repl_factor, index, partition)
+      ScalaEnumerable.new(assignment)
     end
   end
 
