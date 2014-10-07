@@ -9,6 +9,19 @@ module Ktl
   end
 end
 
+class Thor
+  module Shell
+    class Basic
+
+      protected
+
+      def unix?
+        RUBY_PLATFORM =~ /java/i
+      end
+    end
+  end
+end
+
 require 'ktl/command'
 require 'ktl/broker'
 require 'ktl/balance_plan'
