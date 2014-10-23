@@ -76,7 +76,7 @@ describe 'bin/ktl topic' do
     end
   end
 
-  describe 'expand' do
+  describe 'add-partitions' do
     before do
       silence { run(['topic', 'create'], %w[topic1 --partitions 1 --replication-factor 2] + zk_args) }
     end
@@ -84,7 +84,7 @@ describe 'bin/ktl topic' do
     it 'expands the number of partitions for given topic' do
       partitions = Kafka::Utils.get_partitions_for_topic(ktl_zk, 'topic1')
       expect(partitions.size).to eq(1)
-      capture { run(['topic', 'expand'], %w[topic1 --partitions 2] + zk_args) }
+      capture { run(['topic', 'add-partitions'], %w[topic1 --partitions 2] + zk_args) }
       partitions = Kafka::Utils.get_partitions_for_topic(ktl_zk, 'topic1')
       expect(partitions.size).to eq(2)
     end

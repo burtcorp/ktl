@@ -23,9 +23,9 @@ module Ktl
       end
     end
 
-    desc 'expand', 'add partitions to one or more existing topics'
+    desc 'add-partitions', 'add partitions to one or more existing topics'
     option :partitions, aliases: %w[-p], required: true, desc: 'new number of partitions'
-    def expand(*names)
+    def add_partitions(*names)
       with_zk_client do |zk_client|
         names.each do |name|
           opts = options.merge(alter: nil, topic: name)
