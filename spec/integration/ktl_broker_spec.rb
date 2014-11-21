@@ -194,7 +194,7 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      run(['broker', 'decommission', '1'], zk_args)
+      silence { run(['broker', 'decommission', '1'], zk_args) }
       expect(partitions).to contain_exactly(
         a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 2]),
         a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 2]),
