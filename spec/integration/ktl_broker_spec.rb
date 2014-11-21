@@ -89,10 +89,10 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
-      expect(partitions).to match [
+      expect(partitions).to contain_exactly(
         a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1]),
         a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1])
-      ]
+      )
     end
   end
 
@@ -112,10 +112,10 @@ describe 'bin/ktl broker' do
 
     it 'kick-starts a preferred replica command' do
       silence { run(['broker', 'preferred-replica'], zk_args) }
-      expect(partitions).to match [
+      expect(partitions).to contain_exactly(
         a_hash_including('topic' => 'topic1', 'partition' => 0),
         a_hash_including('topic' => 'topic2', 'partition' => 0)
-      ]
+      )
     end
 
     context 'when given a topic regexp' do
