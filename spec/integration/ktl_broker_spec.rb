@@ -177,4 +177,30 @@ describe 'bin/ktl broker' do
       end
     end
   end
+
+  describe 'decommission' do
+    let :partitions do
+      path = Kafka::Utils::ZkUtils.reassign_partitions_path
+      fetch_json(ktl_zk_client, path, 'partitions')
+    end
+
+    before do
+      register_broker(ktl_zk_client, 1)
+      register_broker(ktl_zk_client, 2)
+      %w[topic1 topic2].each do |t|
+        silence { run(['topic', 'create'], [t, '--partitions', '2', '--replication-factor', '2', '--replica-assignment', '0:1,0:1'] + zk_args) }
+        create_partitions(ktl_zk_client, t, 2)
+      end
+    end
+
+    it 'kick-starts a partition reassignment command' do
+      run(['broker', 'decommission', '1'], zk_args)
+      expect(partitions).to contain_exactly(
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 2]),
+      )
+    end
+  end
 end

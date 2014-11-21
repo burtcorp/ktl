@@ -37,5 +37,14 @@ module Ktl
         Kafka::Admin.reassign_partitions(zk_client.raw_client, plan)
       end
     end
+
+    desc 'decommission', 'decommission a broker'
+    def decommission(broker_id)
+      with_zk_client do |zk_client|
+        plan = DecommissionPlan.new(zk_client, broker_id.to_i).generate
+        say 'reassigning %d partitions' % plan.size
+        Kafka::Admin.reassign_partitions(zk_client.raw_client, plan)
+      end
+    end
   end
 end
