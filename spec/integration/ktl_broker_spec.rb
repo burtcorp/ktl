@@ -49,7 +49,8 @@ describe 'bin/ktl broker' do
     Kafka::Utils::ZkUtils.create_persistent_path(zk, partitions_path, '')
     partitions.times.map do |i|
       state_path = [partitions_path, i, 'state'].join('/')
-      state = {controller_epoch: 1, leader: 0, leader_epoch: 1, version: 1, isr: [0, 1]}
+      isr = [0, 1]
+      state = {controller_epoch: 1, leader: isr.first, leader_epoch: 1, version: 1, isr: isr}
       Kafka::Utils::ZkUtils.create_persistent_path(zk, state_path, state.to_json)
     end
   end
@@ -139,7 +140,7 @@ describe 'bin/ktl broker' do
     before do
       register_broker(ktl_zk_client, 1)
       %w[topic1 topic2].each do |t|
-        silence { run(['topic', 'create'], [t, '--partitions', '2', '--replication-factor', '2'] + zk_args) }
+        silence { run(['topic', 'create'], [t, '--partitions', '2', '--replication-factor', '2', '--replica-assignment', '0:1,0:1'] + zk_args) }
         create_partitions(ktl_zk_client, t, 2)
       end
     end
@@ -148,9 +149,15 @@ describe 'bin/ktl broker' do
       silence { run(['broker', 'balance'], zk_args) }
       expect(partitions).to match [
         a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
+      ]
+    end
+
+    it 'ignores assignments that are identical to current assignments' do
+      silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+      expect(partitions).to_not match [
         a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
         a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 1]),
-        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
       ]
     end
 
@@ -158,12 +165,14 @@ describe 'bin/ktl broker' do
       it 'only includes matched topics' do
         silence { run(['broker', 'balance', '^topic1$'], zk_args) }
         expect(partitions).to match [
-          a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
-          a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1])
+          a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0])
         ]
+      end
+
+      it 'ignores assignments that are identical to current assignments' do
+        silence { run(['broker', 'balance', '^topic1$'], zk_args) }
         expect(partitions).to_not match [
-          a_hash_including('topic' => 'topic2', 'partition' => 1),
-          a_hash_including('topic' => 'topic2', 'partition' => 0)
+          a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
         ]
       end
     end

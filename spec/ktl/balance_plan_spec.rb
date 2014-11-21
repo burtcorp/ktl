@@ -62,21 +62,23 @@ module Ktl
       it 'returns a Scala Map with assignments' do
         generated_plan = plan.generate
         expect(generated_plan).to be_a(Scala::Collection::Immutable::Map)
-        expect(generated_plan.size).to eq(4)
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 0)]).to eq(scala_int_list([0, 1]))
+        expect(generated_plan.size).to eq(2)
         expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(scala_int_list([1, 0]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 0)]).to eq(scala_int_list([1, 0]))
         expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(scala_int_list([0, 1]))
+      end
+
+      it 'ignores assignments that are identical to current assignments' do
+        generated_plan = plan.generate
+        expect(generated_plan.contains?(Kafka::TopicAndPartition.new('topic1', 0))).to eq(false)
+        expect(generated_plan.contains?(Kafka::TopicAndPartition.new('topic2', 0))).to eq(false)
       end
 
       it 'returns an (almost) deterministic assignment plan' do
         first_plan = plan.generate
         second_plan = described_class.new(zk_client, filter).generate
         topics.foreach do |t|
-          [0, 1].each do |p|
-            tp = Kafka::TopicAndPartition.new(t, p)
-            expect(first_plan[tp]).to eq(second_plan[tp])
-          end
+          tp = Kafka::TopicAndPartition.new(t, 1)
+          expect(first_plan[tp]).to eq(second_plan[tp])
         end
       end
 
@@ -102,13 +104,11 @@ module Ktl
 
         it 'only includes filtered topics' do
           generated_plan = plan.generate
-          [0, 1].each do |p|
-            tp = Kafka::TopicAndPartition.new('topic1', p)
-            expect(generated_plan.contains?(tp)).to be true
-            expect(generated_plan[tp].size).to be > 1
-            tp = Kafka::TopicAndPartition.new('topic2', p)
-            expect(generated_plan.contains?(tp)).to be false
-          end
+          tp = Kafka::TopicAndPartition.new('topic1', 1)
+          expect(generated_plan.contains?(tp)).to be true
+          expect(generated_plan[tp].size).to be > 1
+          tp = Kafka::TopicAndPartition.new('topic2', 1)
+          expect(generated_plan.contains?(tp)).to be false
         end
       end
     end

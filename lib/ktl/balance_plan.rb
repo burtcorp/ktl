@@ -18,12 +18,15 @@ module Ktl
       start_index = 0
       topics_partitions.each do |tp|
         topic, partitions = tp.elements
-        replicas = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, partitions.first))
-        assignment = Kafka::Admin.assign_replicas_to_brokers(brokers, partitions.size, replicas.size, start_index)
+        nr_replicas = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, 0)).size
+        assignment = Kafka::Admin.assign_replicas_to_brokers(brokers, partitions.size, nr_replicas, start_index)
         assignment.each do |pr|
           partition, replicas = pr.elements
           topic_partition = Kafka::TopicAndPartition.new(topic, partition)
-          reassignment_plan += Scala::Tuple.new(topic_partition, replicas)
+          current_assignment = replica_assignments.apply(topic_partition)
+          unless current_assignment == replicas
+            reassignment_plan += Scala::Tuple.new(topic_partition, replicas)
+          end
         end
         start_index = (start_index + 1) % brokers.size
       end
