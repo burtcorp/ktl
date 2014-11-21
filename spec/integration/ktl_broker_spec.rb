@@ -90,8 +90,8 @@ describe 'bin/ktl broker' do
 
     it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
       expect(partitions).to match [
-        a_hash_including('topic' => 'topic1', 'replicas' => [1]),
-        a_hash_including('topic' => 'topic2', 'replicas' => [1])
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1])
       ]
     end
   end
