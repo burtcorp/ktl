@@ -74,6 +74,19 @@ describe 'bin/ktl topic' do
         expect(replicas.size).to eq(2)
       end
     end
+
+    context 'with --replica-assignment' do
+      let :args do
+        %w[topic1 --partitions 2 --replication-factor 2 --replica-assignment 0:1,1:0] + zk_args
+      end
+
+      it 'uses the given replica assignment' do
+        replicas = Kafka::Utils::ZkUtils.get_replicas_for_partition(ktl_zk, 'topic1', 0)
+        expect(replicas).to eq(scala_int_list([0, 1]))
+        replicas = Kafka::Utils::ZkUtils.get_replicas_for_partition(ktl_zk, 'topic1', 1)
+        expect(replicas).to eq(scala_int_list([1, 0]))
+      end
+    end
   end
 
   describe 'add-partitions' do
