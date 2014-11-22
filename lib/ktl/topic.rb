@@ -43,11 +43,7 @@ module Ktl
         topics = topics.filter { |t| !!t.match(regexp) }
         say 'about to delete %d topics' % topics.size
         topics.foreach do |topic|
-          begin
-            Kafka::Admin::AdminUtils.delete_topic(zk_client.raw_client, topic)
-          rescue => e
-            say 'Failed to delete %s due to %s' % [topic, e.message], :yellow
-          end
+          Kafka::Admin::AdminUtils.delete_topic(zk_client.raw_client, topic)
         end
       end
     end

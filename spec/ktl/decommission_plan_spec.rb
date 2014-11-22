@@ -33,10 +33,6 @@ module Ktl
       ps
     end
 
-    let :topics do
-      scala_list(%w[topic1 topic2 topic3])
-    end
-
     let :assignments do
       a = Scala::Collection::Mutable::HashMap.new
       a.put(Kafka::TopicAndPartition.new('topic1', to_int(0)), scala_int_list([0, 1]))
