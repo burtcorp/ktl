@@ -33,10 +33,6 @@ module Ktl
       1
     end
 
-    let :zk_utils do
-      double(:zk_utils)
-    end
-
     describe '#generate' do
       before do
         allow(zk_client).to receive(:all_partitions).and_return(partitions)
