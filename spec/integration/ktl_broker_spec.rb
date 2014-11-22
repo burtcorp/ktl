@@ -129,6 +129,13 @@ describe 'bin/ktl broker' do
         ]
       end
     end
+
+    context 'when given a topic regexp that doesn\'t match anything' do
+      it 'prints an error message' do
+        output = capture { run(['broker', 'preferred-replica', '^topics1$'], zk_args) }
+        expect(output).to match /no topics matched/
+      end
+    end
   end
 
   describe 'balance' do
