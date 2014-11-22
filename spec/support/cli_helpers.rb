@@ -31,3 +31,7 @@ module CliHelpers
   end
   alias_method :silence_scala, :capture_scala
 end
+
+RSpec.configure do |config|
+  config.include(CliHelpers)
+end

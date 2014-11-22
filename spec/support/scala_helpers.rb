@@ -15,3 +15,7 @@ module ScalaHelpers
     i.to_java(:Integer)
   end
 end
+
+RSpec.configure do |config|
+  config.include(ScalaHelpers)
+end
