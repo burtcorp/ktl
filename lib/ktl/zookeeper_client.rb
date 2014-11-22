@@ -55,6 +55,14 @@ module Ktl
       @utils.get_replicas_for_partition(@client, topic, partition)
     end
 
+    def partitions_being_reassigned
+      @utils.get_partitions_being_reassigned(@client)
+    end
+
+    def reassign_partitions(json)
+      @utils.create_persistent_path(@client, @utils.reassign_partitions_path, json)
+    end
+
     private
 
     CONCURRENCY = 8
