@@ -26,12 +26,10 @@ module Ktl
 
     def execute(reassignment)
       json = reassignment_json(reassignment)
-      if json.bytesize >= @json_max_size
-        reassignments = split(reassignment, json.bytesize)
-        json = reassignment_json(reassignments.next)
-        write_overflow(reassignments)
-      end
+      reassignments = split(reassignment, json.bytesize)
+      json = reassignment_json(reassignments.next)
       @zk_client.reassign_partitions(json)
+      manage_overflow(reassignments)
     end
 
     private
@@ -42,11 +40,23 @@ module Ktl
       @overflow_filename ||= %(.#{@type}-overflow.json)
     end
 
+    def manage_overflow(reassignments)
+      if reassignments.has_next?
+        write_overflow(reassignments)
+      else
+        delete_old_overflow
+      end
+    end
+
     def write_overflow(reassignments)
       File.open(overflow_filename, 'w+') do |file|
         remaining = reassignments.reduce_left { |e, r| r.send('++', e) }
         file.puts(reassignment_json(remaining))
       end
+    end
+
+    def delete_old_overflow
+      FileUtils.rm_f(overflow_filename)
     end
 
     def reassignment_json(reassignment)
@@ -58,7 +68,7 @@ module Ktl
     end
 
     def split(reassignment, bytesize)
-      groups = bytesize.fdiv(@json_max_size).round
+      groups = [bytesize.fdiv(@json_max_size).round, 1].max
       group_size = reassignment.size.fdiv(groups).round
       reassignment.grouped(group_size)
     end

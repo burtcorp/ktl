@@ -96,7 +96,6 @@ module Ktl
 
       before do
         allow(zk_client).to receive(:reassign_partitions)
-        reassigner.execute(reassignment)
       end
 
       context 'when the reassignment is less than `json_max_limit`' do
@@ -115,11 +114,24 @@ module Ktl
         end
 
         it 'does not split the reassignment' do
+          reassigner.execute(reassignment)
           expect(zk_client).to have_received(:reassign_partitions).with(json)
         end
 
         it 'does not write an overflow file' do
+          reassigner.execute(reassignment)
           expect(File.exists?('.type-overflow.json')).to be false
+        end
+
+        context 'and there is an old overflow file present' do
+          before do
+            FileUtils.touch('.type-overflow.json')
+            reassigner.execute(reassignment)
+          end
+
+          it 'removes the overflow file' do
+            expect(File.exists?('.type-overflow.json')).to be false
+          end
         end
       end
 
@@ -147,6 +159,10 @@ module Ktl
 
         let :options do
           {json_max_size: 150}
+        end
+
+        before do
+          reassigner.execute(reassignment)
         end
 
         it 'splits the reassignment' do
