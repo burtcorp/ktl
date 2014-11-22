@@ -26,6 +26,7 @@ class Thor
 end
 
 require 'ktl/command'
+require 'ktl/control'
 require 'ktl/broker'
 require 'ktl/balance_plan'
 require 'ktl/cluster'

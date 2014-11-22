@@ -8,10 +8,10 @@ module Ktl
     def migrate
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
-        migration_plan = MigrationPlan.new(zk_client, old_leader, new_leader).generate
-        say 'moving %d partitions from %d to %d' % [migration_plan.size, old_leader, new_leader]
+        plan = MigrationPlan.new(zk_client, old_leader, new_leader)
         reassigner = Reassigner.new(:migrate, zk_client)
-        reassigner.execute(migration_plan)
+        control = Control::Reassignment.new(reassigner, plan, shell)
+        control.perform
       end
     end
 
@@ -33,20 +33,20 @@ module Ktl
     desc 'balance', 'balance topics and partitions between brokers'
     def balance(regexp='.*')
       with_zk_client do |zk_client|
-        plan = BalancePlan.new(zk_client, regexp).generate
-        say 'reassigning %d partitions' % plan.size
+        plan = BalancePlan.new(zk_client, regexp)
         reassigner = Reassigner.new(:balance, zk_client)
-        reassigner.execute(plan)
+        control = Control::Reassignment.new(reassigner, plan, shell)
+        control.perform
       end
     end
 
     desc 'decommission', 'decommission a broker'
     def decommission(broker_id)
       with_zk_client do |zk_client|
-        plan = DecommissionPlan.new(zk_client, broker_id.to_i).generate
-        say 'reassigning %d partitions' % plan.size
+        plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         reassigner = Reassigner.new(:decommission, zk_client)
-        reassigner.execute(plan)
+        control = Control::Reassignment.new(reassigner, plan, shell)
+        control.perform
       end
     end
   end

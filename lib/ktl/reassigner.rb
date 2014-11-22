@@ -16,10 +16,10 @@ module Ktl
     end
 
     def overflow?
-      File.exists?(overflow_filename)
+      File.exists?(overflow_filename) && load_overflow.size > 0
     end
 
-    def load
+    def load_overflow
       overflow_json = File.read(overflow_filename)
       parse_reassignment_json(overflow_json)
     end

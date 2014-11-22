@@ -85,7 +85,9 @@ describe 'bin/ktl broker' do
     end
 
     before do
-      silence { run(['broker', 'migrate'], args + zk_args) }
+      interactive(%w[y]) do
+        silence { run(['broker', 'migrate'], args + zk_args) }
+      end
     end
 
     it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
@@ -153,7 +155,9 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      silence { run(['broker', 'balance'], zk_args) }
+      interactive(%w[y]) do
+        silence { run(['broker', 'balance'], zk_args) }
+      end
       expect(partitions).to match [
         a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
         a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
@@ -161,7 +165,9 @@ describe 'bin/ktl broker' do
     end
 
     it 'ignores assignments that are identical to current assignments' do
-      silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+      interactive(%w[y]) do
+        silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+      end
       expect(partitions).to_not match [
         a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
         a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 1]),
@@ -170,14 +176,18 @@ describe 'bin/ktl broker' do
 
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
-        silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+        interactive(%w[y]) do
+          silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+        end
         expect(partitions).to match [
           a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0])
         ]
       end
 
       it 'ignores assignments that are identical to current assignments' do
-        silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+        interactive(%w[y]) do
+          silence { run(['broker', 'balance', '^topic1$'], zk_args) }
+        end
         expect(partitions).to_not match [
           a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
         ]
@@ -201,7 +211,9 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      silence { run(['broker', 'decommission', '1'], zk_args) }
+      interactive(%w[y]) do
+        silence { run(['broker', 'decommission', '1'], zk_args) }
+      end
       expect(partitions).to contain_exactly(
         a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 2]),
         a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 2]),

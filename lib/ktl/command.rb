@@ -14,5 +14,9 @@ module Ktl
     ensure
       zk_client.close
     end
+
+    def shell
+      @shell ||= Ui::Shell.new
+    end
   end
 end

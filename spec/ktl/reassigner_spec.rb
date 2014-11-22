@@ -59,8 +59,21 @@ module Ktl
       end
 
       context 'if there\'s an overflow file' do
+        let :json do
+          r = Scala::Collection::Map.empty
+          2.times.map do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+          Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
+        end
+
         it 'returns true' do
-          FileUtils.touch('.type-overflow.json')
+          File.open('.type-overflow.json', 'w+') do |file|
+            file.puts(json)
+          end
           expect(reassigner).to be_overflow
         end
       end
