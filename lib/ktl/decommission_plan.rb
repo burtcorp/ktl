@@ -24,13 +24,7 @@ module Ktl
           if brokers.size >= replicas.size
             brokers_diff = ScalaEnumerable.new(brokers.diff(replicas)).sort
             broker_index = replicas.index_of(@broker_id)
-            if broker_index.zero?
-              new_broker = brokers_diff.min_by { |broker| @replicas_count[broker] }
-              @replicas_count[new_broker] += 1
-            else
-              new_broker = brokers_diff.min_by { |broker| @leaders_count[broker] }
-              @leaders_count[new_broker] += 1
-            end
+            new_broker = elect_new_broker(broker_index, brokers_diff)
             new_replicas = replicas.updated(broker_index, new_broker, CAN_BUILD_FROM)
             plan += Scala::Tuple.new(tp, new_replicas)
           else
@@ -44,6 +38,17 @@ module Ktl
     private
 
     CAN_BUILD_FROM = Scala::Collection::Immutable::List.can_build_from
+
+    def elect_new_broker(broker_index, diff)
+      if broker_index.zero?
+        new_broker = diff.min_by { |broker| @replicas_count[broker] }
+        @replicas_count[new_broker] += 1
+      else
+        new_broker = diff.min_by { |broker| @leaders_count[broker] }
+        @leaders_count[new_broker] += 1
+      end
+      new_broker
+    end
 
     def count_leaders_and_replicas(map)
       map.foreach do |element|
