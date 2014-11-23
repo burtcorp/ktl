@@ -50,50 +50,75 @@ module Ktl
     end
 
     describe '#overflow?' do
-      around do |example|
-        Dir.mktmpdir do |dir|
-          Dir.chdir(dir) do
-            example.call
-          end
+      let :znodes do
+        []
+      end
+
+      before do
+        allow(zk_client).to receive(:get_children).and_return(znodes)
+      end
+
+      context 'when there are no overflow znodes' do
+        it 'returns false' do
+          expect(reassigner).to_not be_overflow
         end
       end
 
-      context 'if there\'s an overflow file' do
-        let :json do
-          r = Scala::Collection::Map.empty
-          2.times.map do |partition|
-            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
-            replicas = scala_int_list([0, 1, 2])
-            r += Scala::Tuple.new(topic_partition, replicas)
-          end
-          r
-          Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
+      context 'when there are overflow znodes' do
+        let :znodes do
+          %w[0 1 2]
         end
 
         it 'returns true' do
-          File.open('.type-overflow.json', 'w+') do |file|
-            file.puts(json)
-          end
           expect(reassigner).to be_overflow
         end
       end
 
-      context 'if there\'s not an overflow file' do
+      context 'when ZkNoNodeException is raised' do
+        before do
+          allow(zk_client).to receive(:get_children).and_raise(ZkClient::Exception::ZkNoNodeException.new)
+        end
+
         it 'returns false' do
           expect(reassigner).to_not be_overflow
         end
       end
     end
 
-    describe '#execute' do
-      around do |example|
-        Dir.mktmpdir do |dir|
-          Dir.chdir(dir) do
-            example.call
-          end
+    describe '#load_overflow' do
+      let :overflow_part_1 do
+        r = Scala::Collection::Map.empty
+        2.times.map do |partition|
+          topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+          replicas = scala_int_list([0, 1, 2])
+          r += Scala::Tuple.new(topic_partition, replicas)
         end
+        Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
       end
 
+      let :overflow_part_2 do
+        r = Scala::Collection::Map.empty
+        2.times.map do |partition|
+          topic_partition = Kafka::TopicAndPartition.new('topic2', partition)
+          replicas = scala_int_list([0, 1, 2])
+          r += Scala::Tuple.new(topic_partition, replicas)
+        end
+        Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
+      end
+
+      before do
+        allow(zk_client).to receive(:get_children).with('/ktl/overflow/type').and_return(scala_list(%w[0 1]))
+        allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/0').and_return(overflow_part_1)
+        allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/1').and_return(overflow_part_2)
+      end
+
+      it 'reads overflow from ZK' do
+        overflow = reassigner.load_overflow
+        expect(overflow.size).to eq(4)
+      end
+    end
+
+    describe '#execute' do
       before do
         allow(zk_client).to receive(:reassign_partitions)
       end
@@ -113,25 +138,18 @@ module Ktl
           Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(reassignment)
         end
 
+        before do
+          allow(zk_client).to receive(:delete_znode)
+        end
+
         it 'does not split the reassignment' do
           reassigner.execute(reassignment)
           expect(zk_client).to have_received(:reassign_partitions).with(json)
         end
 
-        it 'does not write an overflow file' do
+        it 'unconditionally removes previous overflow znodes' do
           reassigner.execute(reassignment)
-          expect(File.exists?('.type-overflow.json')).to be false
-        end
-
-        context 'and there is an old overflow file present' do
-          before do
-            FileUtils.touch('.type-overflow.json')
-            reassigner.execute(reassignment)
-          end
-
-          it 'removes the overflow file' do
-            expect(File.exists?('.type-overflow.json')).to be false
-          end
+          expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
         end
       end
 
@@ -161,7 +179,14 @@ module Ktl
           {json_max_size: 150}
         end
 
+        let :overflow_znodes do
+          []
+        end
+
         before do
+          allow(zk_client).to receive(:create_znode) do |path, data|
+            overflow_znodes << [path, data]
+          end
           reassigner.execute(reassignment)
         end
 
@@ -169,9 +194,12 @@ module Ktl
           expect(zk_client).to have_received(:reassign_partitions).with(scaled_down_json)
         end
 
-        it 'writes the remaining json to disk' do
-          overflow_json = File.read('.type-overflow.json')
-          overflow = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(overflow_json)
+        it 'writes the remaining json to ZK' do
+          overflow = Scala::Collection::Map.empty
+          overflow = overflow_znodes.reduce(overflow) do |acc, (path, data)|
+            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            acc.send('++', data)
+          end
           expect(overflow.size).to eq(7)
         end
       end

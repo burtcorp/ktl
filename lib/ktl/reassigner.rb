@@ -16,12 +16,21 @@ module Ktl
     end
 
     def overflow?
-      File.exists?(overflow_filename) && load_overflow.size > 0
+      overflow_znodes = @zk_client.get_children(overflow_base_path)
+      overflow_znodes.size > 0
+    rescue ZkClient::Exception::ZkNoNodeException
+      false
     end
 
     def load_overflow
-      overflow_json = File.read(overflow_filename)
-      parse_reassignment_json(overflow_json)
+      overflow = Scala::Collection::Map.empty
+      overflow_nodes = @zk_client.get_children(overflow_base_path)
+      overflow_nodes.foreach do |index|
+        overflow_json = @zk_client.read_data(overflow_path(index))
+        data = parse_reassignment_json(overflow_json)
+        overflow = overflow.send('++', data)
+      end
+      overflow
     end
 
     def execute(reassignment)
@@ -36,10 +45,6 @@ module Ktl
 
     JSON_MAX_SIZE = 1024**3
 
-    def overflow_filename
-      @overflow_filename ||= %(.#{@type}-overflow.json)
-    end
-
     def manage_overflow(reassignments)
       if reassignments.has_next?
         write_overflow(reassignments)
@@ -48,15 +53,25 @@ module Ktl
       end
     end
 
+    def overflow_base_path
+      @overflow_base_path ||= %(/ktl/overflow/#{@type})
+    end
+
+    def overflow_path(index)
+      %(#{overflow_base_path}/#{index})
+    end
+
     def write_overflow(reassignments)
-      File.open(overflow_filename, 'w+') do |file|
-        remaining = reassignments.reduce_left { |e, r| r.send('++', e) }
-        file.puts(reassignment_json(remaining))
+      index = 0
+      while reassignments.has_next?
+        overflow_json = reassignment_json(reassignments.next)
+        @zk_client.create_znode(overflow_path(index), overflow_json)
+        index += 1
       end
     end
 
     def delete_old_overflow
-      FileUtils.rm_f(overflow_filename)
+      @zk_client.delete_znode(overflow_base_path, recursive: true)
     end
 
     def reassignment_json(reassignment)

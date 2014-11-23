@@ -40,7 +40,7 @@ module Ktl
           it 'asks the user whether to use it or not' do
             allow(reassigner).to receive(:overflow?).and_return(true)
             control.perform
-            expect(shell).to have_received(:yes?).with('Overflow file found, load? [y/n]: ')
+            expect(shell).to have_received(:yes?).with('Overflow from previous reassignment found, use? [y/n]: ')
           end
 
           context 'when the user answers `y`/`yes`' do
@@ -57,7 +57,7 @@ module Ktl
 
             it 'prints a message about loading overflow data' do
               control.perform
-              expect(shell).to have_received(:say).with('Loading overflow data from file')
+              expect(shell).to have_received(:say).with('Loading overflow data')
             end
           end
 

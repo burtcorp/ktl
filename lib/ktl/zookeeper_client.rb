@@ -63,6 +63,26 @@ module Ktl
       @utils.create_persistent_path(@client, @utils.reassign_partitions_path, json)
     end
 
+    def create_znode(path, data='')
+      @utils.create_persistent_path(@client, path, data)
+    end
+
+    def delete_znode(path, options={})
+      if options[:recursive]
+        @utils.delete_path_recursive(@client, path)
+      else
+        @utils.delete_path(@client, path)
+      end
+    end
+
+    def read_data(path)
+      @utils.read_data(@client, path)
+    end
+
+    def get_children(path)
+      @utils.get_children(@client, path)
+    end
+
     private
 
     CONCURRENCY = 8

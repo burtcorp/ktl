@@ -10,8 +10,13 @@ module Log4j
   Logger.root_logger.set_level(Level::ERROR)
 end
 
-java_import 'org.I0Itec.zkclient.ZkClient'
+module ZkClient
+  java_import 'org.I0Itec.zkclient.ZkClient'
 
+  module Exception
+    include_package 'org.I0Itec.zkclient.exception'
+  end
+end
 
 module Scala
   java_import 'scala.Tuple2'
@@ -56,7 +61,7 @@ module Kafka
     include_package 'kafka.utils'
 
     def self.new_zk_client(zk_connect, timeout=30_000)
-      ::ZkClient.new(zk_connect, timeout, timeout, ZKStringSerializer)
+      ::ZkClient::ZkClient.new(zk_connect, timeout, timeout, ZKStringSerializer)
     end
 
     def self.get_partitions_for_topic(zk, topic)

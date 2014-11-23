@@ -15,7 +15,7 @@ module Ktl
           @shell.say 'Reassignment already in progress, %d partitions remaining' % in_progress
         else
           if use_overflow?
-            @shell.say 'Loading overflow data from file'
+            @shell.say 'Loading overflow data'
             reassignment = @reassigner.load_overflow
           else
             @shell.say 'Generating a new reassignment plan'
@@ -33,7 +33,7 @@ module Ktl
       private
 
       def use_overflow?
-        @reassigner.overflow? && @shell.yes?('Overflow file found, load? [y/n]: ')
+        @reassigner.overflow? && @shell.yes?('Overflow from previous reassignment found, use? [y/n]: ')
       end
     end
   end
