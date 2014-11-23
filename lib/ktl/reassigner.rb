@@ -24,7 +24,7 @@ module Ktl
       overflow = Scala::Collection::Map.empty
       overflow_nodes = @zk_client.get_children(overflow_base_path)
       overflow_nodes.foreach do |index|
-        overflow_json = @zk_client.read_data(overflow_path(index))
+        overflow_json = @zk_client.read_data(overflow_path(index)).first
         data = parse_reassignment_json(overflow_json)
         overflow = overflow.send('++', data)
       end

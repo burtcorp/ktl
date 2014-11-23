@@ -66,14 +66,65 @@ describe 'bin/ktl broker' do
     ktl_zk_client.close
   end
 
+  shared_examples 'overflow znodes' do
+    context 'when there are overflow znodes present' do
+      before do
+        overflow_zk = Ktl::ZookeeperClient.new(zk + '/ktl-test').setup
+        overflow_json = {
+          version: 1,
+          partitions: [
+            {topic: 'topic1', partition: 0, replicas: [1]}
+          ]
+        }.to_json
+        overflow_zk.create_znode(%(/ktl/overflow/#{command}/0), overflow_json)
+        overflow_zk.close
+      end
+
+      before do
+        interactive(input) do
+          silence { run(['broker', command], command_args + zk_args) }
+        end
+      end
+
+      context 'and the user chooses to use overflow data' do
+        let :input do
+          %w[y]
+        end
+
+        it 'uses the overflow data' do
+          expect(partitions).to match [
+            a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1])
+          ]
+        end
+      end
+
+      context 'and the user chooses to not use overflow data' do
+        let :input do
+          %w[n]
+        end
+
+        it 'does not use the overflow data' do
+          expect(partitions).to contain_exactly(*reassigned_partitions)
+        end
+      end
+    end
+  end
+
   describe 'migrate' do
-    let :args do
+    let :command_args do
       %w[--from 0 --to 1]
     end
 
     let :partitions do
       path = Kafka::Utils::ZkUtils.reassign_partitions_path
       fetch_json(ktl_zk_client, path, 'partitions')
+    end
+
+    let :reassigned_partitions do
+      [
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1]),
+      ]
     end
 
     before do
@@ -84,17 +135,17 @@ describe 'bin/ktl broker' do
       register_broker(ktl_zk_client, 1)
     end
 
-    before do
+    it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
       interactive(%w[y]) do
-        silence { run(['broker', 'migrate'], args + zk_args) }
+        silence { run(['broker', 'migrate'], command_args + zk_args) }
       end
+      expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
-    it 'kick-starts a partition reassignment command for migrating topic-partitions tuples' do
-      expect(partitions).to contain_exactly(
-        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1]),
-        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1])
-      )
+    include_examples 'overflow znodes' do
+      let :command do
+        'migrate'
+      end
     end
   end
 
@@ -141,9 +192,20 @@ describe 'bin/ktl broker' do
   end
 
   describe 'balance' do
+    let :command_args do
+      []
+    end
+
     let :partitions do
       path = Kafka::Utils::ZkUtils.reassign_partitions_path
       fetch_json(ktl_zk_client, path, 'partitions')
+    end
+
+    let :reassigned_partitions do
+      [
+        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
+      ]
     end
 
     before do
@@ -158,10 +220,7 @@ describe 'bin/ktl broker' do
       interactive(%w[y]) do
         silence { run(['broker', 'balance'], zk_args) }
       end
-      expect(partitions).to match [
-        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
-        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
-      ]
+      expect(partitions).to match(reassigned_partitions)
     end
 
     it 'ignores assignments that are identical to current assignments' do
@@ -193,12 +252,31 @@ describe 'bin/ktl broker' do
         ]
       end
     end
+
+    include_examples 'overflow znodes' do
+      let :command do
+        'balance'
+      end
+    end
   end
 
   describe 'decommission' do
+    let :command_args do
+      %w[1]
+    end
+
     let :partitions do
       path = Kafka::Utils::ZkUtils.reassign_partitions_path
       fetch_json(ktl_zk_client, path, 'partitions')
+    end
+
+    let :reassigned_partitions do
+      [
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 2]),
+        a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 2]),
+      ]
     end
 
     before do
@@ -212,14 +290,15 @@ describe 'bin/ktl broker' do
 
     it 'kick-starts a partition reassignment command' do
       interactive(%w[y]) do
-        silence { run(['broker', 'decommission', '1'], zk_args) }
+        silence { run(['broker', 'decommission'], command_args + zk_args) }
       end
-      expect(partitions).to contain_exactly(
-        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 2]),
-        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [0, 2]),
-        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 2]),
-        a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 2]),
-      )
+      expect(partitions).to contain_exactly(*reassigned_partitions)
+    end
+
+    include_examples 'overflow znodes' do
+      let :command do
+        'decommission'
+      end
     end
   end
 end
