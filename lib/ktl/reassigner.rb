@@ -2,17 +2,15 @@
 
 module Ktl
   class Reassigner
-    attr_reader :partitions
-
     def initialize(type, zk_client, options={})
       @type = type
       @zk_client = zk_client
       @json_max_size = options[:json_max_size] || JSON_MAX_SIZE
     end
 
-    def in_progress?
-      @partitions ||= @zk_client.partitions_being_reassigned
-      @partitions.size > 0
+    def reassignment_in_progress?
+      partitions = @zk_client.partitions_being_reassigned
+      partitions.size > 0
     end
 
     def overflow?

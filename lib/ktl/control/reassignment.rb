@@ -10,9 +10,8 @@ module Ktl
       end
 
       def perform
-        if @reassigner.in_progress?
-          in_progress = @reassigner.partitions.size
-          @shell.say 'Reassignment already in progress, %d partitions remaining' % in_progress
+        if @reassigner.reassignment_in_progress?
+          @shell.say 'Reassignment already in progress, exiting', :red
         else
           if use_overflow?
             @shell.say 'Loading overflow data'

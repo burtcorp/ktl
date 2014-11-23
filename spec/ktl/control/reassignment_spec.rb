@@ -11,7 +11,7 @@ module Ktl
       end
 
       let :reassigner do
-        double(:reassigner, execute: nil, in_progress?: false, overflow?: false, load_overflow: {})
+        double(:reassigner, execute: nil, reassignment_in_progress?: false, overflow?: false, load_overflow: {})
       end
 
       let :plan do
@@ -26,13 +26,13 @@ module Ktl
         context 'when a reassignment is already in progress' do
           before do
             allow(reassigner).to receive(:partitions).and_return(double(size: 2))
-            allow(reassigner).to receive(:in_progress?).and_return(true)
+            allow(reassigner).to receive(:reassignment_in_progress?).and_return(true)
             allow(shell).to receive(:say)
           end
 
           it 'prints a message to the user' do
             control.perform
-            expect(shell).to have_received(:say).with('Reassignment already in progress, 2 partitions remaining')
+            expect(shell).to have_received(:say).with('Reassignment already in progress, exiting', :red)
           end
         end
 

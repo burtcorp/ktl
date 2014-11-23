@@ -17,7 +17,7 @@ module Ktl
       {}
     end
 
-    describe '#in_progress?' do
+    describe '#reassignment_in_progress?' do
       before do
         allow(zk_client).to receive(:partitions_being_reassigned).and_return(reassignment)
       end
@@ -34,7 +34,7 @@ module Ktl
         end
 
         it 'returns true' do
-          expect(reassigner).to be_in_progress
+          expect(reassigner.reassignment_in_progress?).to eq(true)
         end
       end
 
@@ -44,7 +44,7 @@ module Ktl
         end
 
         it 'returns false' do
-          expect(reassigner).to_not be_in_progress
+          expect(reassigner.reassignment_in_progress?).to eq(false)
         end
       end
     end
