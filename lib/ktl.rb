@@ -2,6 +2,7 @@
 
 require 'thor'
 require 'ext/kafka'
+require 'ext/thor'
 
 module Ktl
   KtlError = Class.new(StandardError)
@@ -9,19 +10,6 @@ module Ktl
 
   module JavaConcurrent
     include_package 'java.util.concurrent'
-  end
-end
-
-class Thor
-  module Shell
-    class Basic
-
-      protected
-
-      def unix?
-        RUBY_PLATFORM =~ /java/i
-      end
-    end
   end
 end
 
