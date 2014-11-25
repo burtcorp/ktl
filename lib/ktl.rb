@@ -8,6 +8,8 @@ module Ktl
   KtlError = Class.new(StandardError)
   InsufficientBrokersRemainingError = Class.new(KtlError)
 
+  CanBuildFrom = Scala::Collection::Immutable::List.can_build_from
+
   module JavaConcurrent
     include_package 'java.util.concurrent'
   end

@@ -25,7 +25,7 @@ module Ktl
             brokers_diff = ScalaEnumerable.new(brokers.diff(replicas)).sort
             broker_index = replicas.index_of(@broker_id)
             new_broker = elect_new_broker(broker_index, brokers_diff)
-            new_replicas = replicas.updated(broker_index, new_broker, CAN_BUILD_FROM)
+            new_replicas = replicas.updated(broker_index, new_broker, CanBuildFrom)
             plan += Scala::Tuple.new(tp, new_replicas)
           else
             raise InsufficientBrokersRemainingError, %(#{brokers.size} remaining brokers, #{replicas.size} replicas needed)
@@ -36,8 +36,6 @@ module Ktl
     end
 
     private
-
-    CAN_BUILD_FROM = Scala::Collection::Immutable::List.can_build_from
 
     def elect_new_broker(broker_index, diff)
       if broker_index.zero?
@@ -66,7 +64,7 @@ module Ktl
     end
 
     def topics_from(partitions)
-      partitions.map(proc { |tp| tp.topic }, Scala::Collection::Immutable::List.can_build_from).to_seq
+      partitions.map(proc { |tp| tp.topic }, CanBuildFrom).to_seq
     end
   end
 end
