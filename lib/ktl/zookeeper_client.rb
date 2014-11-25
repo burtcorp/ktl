@@ -51,10 +51,6 @@ module Ktl
       request(:get_replica_assignment_for_topics, topics)
     end
 
-    def replicas_for_partition(topic, partition)
-      @utils.get_replicas_for_partition(@client, topic, partition)
-    end
-
     def partitions_being_reassigned
       @utils.get_partitions_being_reassigned(@client)
     end
