@@ -121,6 +121,7 @@ module Ktl
     describe '#execute' do
       before do
         allow(zk_client).to receive(:reassign_partitions)
+        allow(zk_client).to receive(:create_znode).with(/\/ktl\/reassign\/type/, anything)
       end
 
       context 'when the reassignment is less than `json_max_limit`' do
@@ -150,6 +151,16 @@ module Ktl
         it 'unconditionally removes previous overflow znodes' do
           reassigner.execute(reassignment)
           expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
+        end
+
+        it 'writes the same json to a state path' do
+          reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:create_znode).with('/ktl/reassign/type/0', json)
+        end
+
+        it 'unconditionally removes previous state znodes' do
+          reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:delete_znode).with('/ktl/reassign/type', recursive: true)
         end
       end
 
@@ -183,10 +194,19 @@ module Ktl
           []
         end
 
+        let :reassign_znodes do
+          []
+        end
+
         before do
           allow(zk_client).to receive(:create_znode) do |path, data|
-            overflow_znodes << [path, data]
+            if path =~ /\/ktl\/overflow\/.+/
+              overflow_znodes << [path, data]
+            elsif path =~ /\/ktl\/reassign\/.+/
+              reassign_znodes << [path, data]
+            end
           end
+          allow(zk_client).to receive(:delete_znode).with('/ktl/reassign/type', recursive: true)
           reassigner.execute(reassignment)
         end
 
@@ -201,6 +221,15 @@ module Ktl
             acc.send('++', data)
           end
           expect(overflow.size).to eq(7)
+        end
+
+        it 'writes the same json to a state path, splitted' do
+          reassign = Scala::Collection::Map.empty
+          reassign = reassign_znodes.reduce(reassign) do |acc, (path, data)|
+            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            acc.send('++', data)
+          end
+          expect(reassign.size).to eq(10)
         end
       end
     end

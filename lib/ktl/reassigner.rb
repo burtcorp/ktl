@@ -34,17 +34,35 @@ module Ktl
     def execute(reassignment)
       json = reassignment_json(reassignment)
       reassignments = split(reassignment, json.bytesize)
-      json = reassignment_json(reassignments.next)
+      actual_reassignment = reassignments.shift
+      json = reassignment_json(actual_reassignment)
       @zk_client.reassign_partitions(json)
       manage_overflow(reassignments)
+      manage_progress_state(reassignments.unshift(actual_reassignment))
     end
 
     private
 
     JSON_MAX_SIZE = 1000**2
 
+    def manage_progress_state(reassignments)
+      delete_previous_state
+      reassignments.each_with_index do |reassignment, index|
+        json = reassignment_json(reassignment)
+        @zk_client.create_znode(state_path(index), json)
+      end
+    end
+
+    def delete_previous_state
+      @zk_client.delete_znode(%(/ktl/reassign/#{@type}), recursive: true)
+    end
+
+    def state_path(index)
+      %(/ktl/reassign/#{@type}/#{index})
+    end
+
     def manage_overflow(reassignments)
-      if reassignments.has_next?
+      if reassignments.any?
         write_overflow(reassignments)
       else
         delete_old_overflow
@@ -60,11 +78,9 @@ module Ktl
     end
 
     def write_overflow(reassignments)
-      index = 0
-      while reassignments.has_next?
-        overflow_json = reassignment_json(reassignments.next)
+      reassignments.each_with_index do |reassignment, index|
+        overflow_json = reassignment_json(reassignment)
         @zk_client.create_znode(overflow_path(index), overflow_json)
-        index += 1
       end
     end
 
@@ -83,7 +99,7 @@ module Ktl
     def split(reassignment, bytesize)
       groups = [bytesize.fdiv(@json_max_size).round, 1].max
       group_size = reassignment.size.fdiv(groups).round
-      reassignment.grouped(group_size)
+      ScalaEnumerable.new(reassignment.grouped(group_size)).map(&:seq)
     end
   end
 end

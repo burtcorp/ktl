@@ -61,6 +61,22 @@ describe 'bin/ktl broker' do
     end
   end
 
+  shared_examples 'progress znodes' do
+    context 'znodes for progress state' do
+      before do
+        silence { run(['broker', command], command_args + zk_args) }
+      end
+
+      it 'writes the reassignment json to a `reassign` state prefix' do
+        indices = ktl_zk.get_children(%(/ktl/reassign/#{command}))
+        partitions = indices.map do |i|
+          fetch_json(%(/ktl/reassign/#{command}/#{i}), 'partitions')
+        end.reduce(&:merge)
+        expect(partitions).to contain_exactly(*reassigned_partitions)
+      end
+    end
+  end
+
   describe 'migrate' do
     let :command_args do
       %w[--from 0 --to 1]
@@ -82,13 +98,17 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a reassignment command for migrating partitions' do
-      interactive(%w[y]) do
-        silence { run(%w[broker migrate], command_args + zk_args) }
-      end
+      silence { run(%w[broker migrate], command_args + zk_args) }
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
     include_examples 'overflow znodes' do
+      let :command do
+        'migrate'
+      end
+    end
+
+    include_examples 'progress znodes' do
       let :command do
         'migrate'
       end
@@ -197,6 +217,12 @@ describe 'bin/ktl broker' do
         'balance'
       end
     end
+
+    include_examples 'progress znodes' do
+      let :command do
+        'balance'
+      end
+    end
   end
 
   describe 'decommission' do
@@ -230,6 +256,12 @@ describe 'bin/ktl broker' do
     end
 
     include_examples 'overflow znodes' do
+      let :command do
+        'decommission'
+      end
+    end
+
+    include_examples 'progress znodes' do
       let :command do
         'decommission'
       end
