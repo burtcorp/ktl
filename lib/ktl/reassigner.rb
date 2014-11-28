@@ -41,7 +41,7 @@ module Ktl
 
     private
 
-    JSON_MAX_SIZE = 1024**3
+    JSON_MAX_SIZE = 1000**2
 
     def manage_overflow(reassignments)
       if reassignments.has_next?
