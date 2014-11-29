@@ -16,7 +16,6 @@ end
 require 'ktl'
 
 require 'support/cli_helpers'
-require 'support/fake_set'
 require 'support/interactive'
 require 'support/scala_helpers'
 require 'support/integration'
