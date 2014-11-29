@@ -10,7 +10,7 @@ module Ktl
       end
     end
 
-    desc 'create', 'create one or more new topics'
+    desc 'create NAMES..', 'create one or more new topics'
     option :partitions, aliases: %w[-p], default: '1', desc: 'partitions for new topic(s)'
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'replication factor for new topic(s)'
     option :replica_assignment, aliases: %w[-a], desc: 'manual replica assignment'
@@ -24,7 +24,7 @@ module Ktl
       end
     end
 
-    desc 'add-partitions', 'add partitions to one or more existing topics'
+    desc 'add-partitions NAMES..', 'add partitions to one or more existing topics'
     option :partitions, aliases: %w[-p], required: true, desc: 'new number of partitions'
     def add_partitions(*names)
       with_zk_client do |zk_client|
@@ -36,7 +36,7 @@ module Ktl
       end
     end
 
-    desc 'delete', 'delete topics matching given regexp'
+    desc 'delete REGEXP', 'delete topics matching given regexp'
     def delete(regexp)
       with_zk_client do |zk_client|
         topics = zk_client.all_topics

@@ -15,7 +15,7 @@ module Ktl
       end
     end
 
-    desc 'preferred-replica', 'perform preferred replica leader elections'
+    desc 'preferred-replica [REGEXP]', 'perform preferred replica leader elections'
     def preferred_replica(regexp='.*')
       with_zk_client do |zk_client|
         regexp = Regexp.new(regexp)
@@ -30,7 +30,7 @@ module Ktl
       end
     end
 
-    desc 'balance', 'balance topics and partitions between brokers'
+    desc 'balance [REGEXP]', 'balance topics and partitions between brokers'
     def balance(regexp='.*')
       with_zk_client do |zk_client|
         plan = BalancePlan.new(zk_client, regexp)
@@ -40,7 +40,7 @@ module Ktl
       end
     end
 
-    desc 'decommission', 'decommission a broker'
+    desc 'decommission BROKER_ID', 'decommission a broker'
     def decommission(broker_id)
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
