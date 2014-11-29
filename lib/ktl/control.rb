@@ -2,7 +2,6 @@
 
 module Ktl
   module Control
-    Shell = Class.new(Thor::Shell::Color)
   end
 end
 
