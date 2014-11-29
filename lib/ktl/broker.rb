@@ -49,5 +49,19 @@ module Ktl
         control.perform
       end
     end
+
+    desc 'progress COMMAND', 'show progress of a reassignment command'
+    option :verbose, aliases: %w[-v], desc: 'verbose output'
+    def progress(command)
+      if %w[migrate balance decommission].include?(command)
+        with_zk_client do |zk_client|
+          progress = ReassignmentProgress.new(zk_client, command, options)
+          progress.display(shell);
+        end
+      else
+        raise Thor::Error,
+          shell.set_color('Error: ', :red) << %(#{command.inspect} must be one of migrate, balance or decommission)
+      end
+    end
   end
 end

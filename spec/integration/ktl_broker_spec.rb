@@ -267,4 +267,60 @@ describe 'bin/ktl broker' do
       end
     end
   end
+
+  describe 'progress' do
+    let :console_output do
+      capture { run(%w[broker progress], command_args + zk_args) }
+    end
+
+    let :command_args do
+      %w[balance]
+    end
+
+    context 'when there is an active reassignment in progress' do
+      before do
+        register_broker(1)
+        %w[topic1 topic2].each do |topic|
+          create_topic(topic, %w[--partitions 2 --replication-factor 2 --replica-assignment 0:1,0:1])
+          create_partitions(topic, partitions: 2, isr: [0, 1])
+        end
+        silence { run(%w[broker balance], zk_args) }
+      end
+
+      context 'with -v / --verbose flag' do
+        let :command_args do
+          %w[balance -v]
+        end
+
+        it 'prints the number of remaining reassignments' do
+          expect(console_output).to match('remaining partitions to reassign: 2')
+        end
+
+        it 'outputs a table of reassignments' do
+          expect(console_output).to match(/topic\s+partition\s+replicas/)
+          expect(console_output).to match(/topic1\s+1\s+\[1, 0\]/)
+          expect(console_output).to match(/topic2\s+0\s+\[1, 0\]/)
+        end
+      end
+
+      context 'without -v / --verbose flag' do
+        it 'prints the number of remaining reassignments' do
+          expect(console_output).to include('remaining partitions to reassign: 2')
+        end
+      end
+    end
+
+    context 'when there is no active reassignment in progress' do
+      it 'prints a message about it' do
+        expect(console_output).to include('no partitions remaining to reassign')
+      end
+    end
+
+    context 'when called with an invalid command' do
+      it 'prints an error message' do
+        console_output = capture(:stderr) { run(%w[broker progress], %w[hello] + zk_args) }
+        expect(console_output).to match('Error: "hello" must be one of migrate, balance or decommission')
+      end
+    end
+  end
 end
