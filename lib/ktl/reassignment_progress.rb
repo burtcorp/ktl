@@ -10,11 +10,15 @@ module Ktl
     end
 
     def display(shell)
-      remaining = diff(current_reassignment, remaining_reassignment)
-      if (partitions = remaining['partitions'])
-        shell.say 'remaining partitions to reassign: %d' % partitions.size
+      in_progress = reassignment_in_progress
+      original = original_reassignment
+      remaining_diff = diff(in_progress, original)
+      if (partitions = remaining_diff['partitions'])
+        original_size, remaining_size = original['partitions'].size, partitions.size
+        percentage = (original_size - remaining_size).fdiv(original_size) * 100
+        shell.say 'remaining partitions to reassign: %d (%.f%% done)' % [remaining_size, percentage]
         if @options[:verbose]
-          shell.print_table(table_data(remaining), indent: 2)
+          shell.print_table(table_data(remaining_diff), indent: 2)
         end
       else
         shell.say 'no partitions remaining to reassign'
@@ -51,13 +55,13 @@ module Ktl
       table
     end
 
-    def current_reassignment
+    def reassignment_in_progress
       read_json(@utils.reassign_partitions_path)
     rescue ZkClient::Exception::ZkNoNodeException
       {}
     end
 
-    def remaining_reassignment
+    def original_reassignment
       path = %(/ktl/reassign/#{@command})
       znode = ScalaEnumerable.new(@zk_client.get_children(path)).sort.first
       read_json(%(#{path}/#{znode}))

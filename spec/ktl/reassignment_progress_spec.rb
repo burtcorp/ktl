@@ -51,7 +51,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1')
+          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (0% done)')
         end
 
         context 'with :verbose => true' do
@@ -165,7 +165,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1')
+          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (50% done)')
         end
 
         context 'with :verbose => true' do
