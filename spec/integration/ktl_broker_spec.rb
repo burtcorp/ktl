@@ -78,6 +78,10 @@ describe 'bin/ktl broker' do
   end
 
   describe 'migrate' do
+    let :command do
+      'migrate'
+    end
+
     let :command_args do
       %w[--from 0 --to 1]
     end
@@ -102,17 +106,8 @@ describe 'bin/ktl broker' do
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
-    include_examples 'overflow znodes' do
-      let :command do
-        'migrate'
-      end
-    end
-
-    include_examples 'progress znodes' do
-      let :command do
-        'migrate'
-      end
-    end
+    include_examples 'overflow znodes'
+    include_examples 'progress znodes'
   end
 
   describe 'preferred-replica' do
@@ -160,6 +155,10 @@ describe 'bin/ktl broker' do
   end
 
   describe 'balance' do
+    let :command do
+      'balance'
+    end
+
     let :reassigned_partitions do
       [
         a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
@@ -212,20 +211,15 @@ describe 'bin/ktl broker' do
       end
     end
 
-    include_examples 'overflow znodes' do
-      let :command do
-        'balance'
-      end
-    end
-
-    include_examples 'progress znodes' do
-      let :command do
-        'balance'
-      end
-    end
+    include_examples 'overflow znodes'
+    include_examples 'progress znodes'
   end
 
   describe 'decommission' do
+    let :command do
+      'decommission'
+    end
+
     let :command_args do
       %w[1]
     end
@@ -255,17 +249,8 @@ describe 'bin/ktl broker' do
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
-    include_examples 'overflow znodes' do
-      let :command do
-        'decommission'
-      end
-    end
-
-    include_examples 'progress znodes' do
-      let :command do
-        'decommission'
-      end
-    end
+    include_examples 'overflow znodes'
+    include_examples 'progress znodes'
   end
 
   describe 'progress' do
