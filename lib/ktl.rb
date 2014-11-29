@@ -16,7 +16,6 @@ module Ktl
 end
 
 require 'ktl/command'
-require 'ktl/control'
 require 'ktl/broker'
 require 'ktl/balance_plan'
 require 'ktl/cluster'
@@ -25,6 +24,7 @@ require 'ktl/decommission_plan'
 require 'ktl/migration_plan'
 require 'ktl/reassigner'
 require 'ktl/reassignment_progress'
+require 'ktl/reassignment_task'
 require 'ktl/topic'
 require 'ktl/cli'
 require 'ktl/zookeeper_client'

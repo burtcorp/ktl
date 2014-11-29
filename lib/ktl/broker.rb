@@ -10,8 +10,8 @@ module Ktl
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
         reassigner = Reassigner.new(:migrate, zk_client)
-        control = Control::Reassignment.new(reassigner, plan, shell)
-        control.perform
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
       end
     end
 
@@ -35,8 +35,8 @@ module Ktl
       with_zk_client do |zk_client|
         plan = BalancePlan.new(zk_client, regexp)
         reassigner = Reassigner.new(:balance, zk_client)
-        control = Control::Reassignment.new(reassigner, plan, shell)
-        control.perform
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
       end
     end
 
@@ -45,8 +45,8 @@ module Ktl
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         reassigner = Reassigner.new(:decommission, zk_client)
-        control = Control::Reassignment.new(reassigner, plan, shell)
-        control.perform
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
       end
     end
 
