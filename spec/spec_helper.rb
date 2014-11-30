@@ -1,9 +1,6 @@
 # encoding: utf-8
 
-require 'bundler/setup'
-require 'json'
 require 'tempfile'
-
 require 'simplecov'
 
 SimpleCov.start do
@@ -19,3 +16,4 @@ require 'support/cli_helpers'
 require 'support/interactive'
 require 'support/scala_helpers'
 require 'support/integration'
+

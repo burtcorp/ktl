@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 require 'thor'
+require 'json'
 require 'ext/kafka'
 require 'ext/thor'
 
