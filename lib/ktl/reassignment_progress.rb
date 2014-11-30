@@ -12,13 +12,12 @@ module Ktl
     def display(shell)
       in_progress = reassignment_in_progress
       original = original_reassignment
-      remaining_diff = diff(in_progress, original)
-      if (partitions = remaining_diff['partitions'])
-        original_size, remaining_size = original['partitions'].size, partitions.size
-        percentage = (original_size - remaining_size).fdiv(original_size) * 100
-        shell.say 'remaining partitions to reassign: %d (%.f%% done)' % [remaining_size, percentage]
+      if in_progress['partitions'] && !in_progress['partitions'].empty?
+        original_size, remaining_size = original['partitions'].size, in_progress['partitions'].size
+        done_percentage = (original_size - remaining_size).fdiv(original_size) * 100
+        shell.say 'remaining partitions to reassign: %d (%.f%% done)' % [remaining_size, done_percentage]
         if @options[:verbose]
-          shell.print_table(table_data(remaining_diff), indent: 2)
+          shell.print_table(table_data(in_progress), indent: 2)
         end
       else
         shell.say 'no partitions remaining to reassign'
@@ -72,20 +71,6 @@ module Ktl
 
     def read_json(path)
       JSON.parse(@zk_client.read_data(path).first)
-    end
-
-    def diff(current, executing)
-      if current['partitions']
-        if current['partitions'] == executing['partitions']
-          current
-        else
-          remaining = current.dup
-          remaining['partitions'] = executing['partitions'] - current['partitions']
-          remaining
-        end
-      else
-        current
-      end
     end
   end
 end

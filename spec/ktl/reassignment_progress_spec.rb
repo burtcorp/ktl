@@ -140,7 +140,7 @@ module Ktl
         let :reassignment_json do
           {
             'partitions' => [
-              {'topic' => 'topic1', 'partition' => 0, 'replicas' => [0]},
+              {'topic' => 'topic2', 'partition' => 0, 'replicas' => [0]},
             ]
           }.to_json
         end
