@@ -10,6 +10,22 @@ module Ktl
       end
     end
 
+    desc 'describe', 'describe (optionally filtered) topics'
+    option :unavailable, aliases: '-u', desc: 'describe unavailable partitions for topic(s)'
+    option :with_overrides, aliases: '-w', desc: 'describe topics with config. overrides'
+    option :under_replicated, aliases: '-r', desc: 'describe under-replicated partitions for topic(s)'
+    def describe(regexp=nil)
+      with_zk_client do |zk_client|
+        opts = {describe: nil}
+        opts[:topic] = regexp if regexp
+        opts[:topics_with_overrides] = nil if options.with_overrides
+        opts[:unavailable_partitions] = nil if options.unavailable
+        opts[:under_replicated_partitions] = nil if options.under_replicated
+        topic_options = Kafka::Admin.to_topic_options(opts)
+        Kafka::Admin::TopicCommand.describe_topic(zk_client.raw_client, topic_options)
+      end
+    end
+
     desc 'create NAMES..', 'create one or more new topics'
     option :partitions, aliases: %w[-p], default: '1', desc: 'partitions for new topic(s)'
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'replication factor for new topic(s)'

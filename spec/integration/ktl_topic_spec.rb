@@ -22,6 +22,42 @@ describe 'bin/ktl topic' do
     end
   end
 
+  describe 'describe' do
+    before do
+      create_topic('topic1', %w[--partitions 2 --replication-factor 2])
+      create_partitions('topic1', partitions: 2, isr: [1])
+      create_topic('topic2', %w[--partitions 2 --replication-factor 2])
+      create_partitions('topic2', partitions: 2, isr: [0, 1])
+      create_topic('topic3', %w[--partitions 2 --replication-factor 2])
+    end
+
+    context 'without any options' do
+      it 'prints information about all topics to $stdout' do
+        output = capture { run(%w[topic describe], zk_args) }
+        expect(output).to match(/Topic: topic1\s+Partition: 0/)
+        expect(output).to match(/Topic: topic1\s+Partition: 1/)
+        expect(output).to match(/Topic: topic2\s+Partition: 0/)
+        expect(output).to match(/Topic: topic2\s+Partition: 1/)
+      end
+    end
+
+    context 'with --unavailable option' do
+      it 'prints information about unavailable topics to $stdout' do
+        output = capture { run(%w[topic describe --unavailable], zk_args) }
+        expect(output).to match(/Topic: topic3\s+Partition: 0/)
+        expect(output).to match(/Topic: topic3\s+Partition: 1/)
+      end
+    end
+
+    context 'with --under-replicated option' do
+      it 'prints information about under-replicated topics to $stdout' do
+        output = capture { run(%w[topic describe --under-replicated], zk_args) }
+        expect(output).to match(/Topic: topic1\s+Partition: 0/)
+        expect(output).to match(/Topic: topic1\s+Partition: 1/)
+      end
+    end
+  end
+
   describe 'create' do
     let :args do
       %w[topic1 --partitions 2 --replication-factor 2]
