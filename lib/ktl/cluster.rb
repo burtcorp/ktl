@@ -24,7 +24,7 @@ module Ktl
     private
 
     def extract_topics(partitions)
-      partitions.map(proc { |tp| tp.topic }, Scala::Collection::Immutable::List.can_build_from).to_seq
+      partitions.map(proc { |tp| tp.topic }, CanBuildFrom).to_seq
     end
 
     def broker_ownership(leaders)

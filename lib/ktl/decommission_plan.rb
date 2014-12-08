@@ -16,7 +16,7 @@ module Ktl
       partitions = @zk_client.all_partitions
       topics = topics_from(partitions)
       assignments = @zk_client.replica_assignment_for_topics(topics)
-      count_leaders_and_replicas(@zk_client.leader_and_isr_for(partitions))
+      count_leaders_and_replicas(@zk_client.leader_and_isr_for(partitions), assignments)
       partitions = ScalaEnumerable.new(partitions).sort_by { |tp| tp.topic + tp.partition.to_s }
       partitions.each do |tp|
         replicas = assignments[tp]
@@ -25,7 +25,7 @@ module Ktl
             brokers_diff = ScalaEnumerable.new(brokers.diff(replicas)).sort
             broker_index = replicas.index_of(@broker_id)
             new_broker = elect_new_broker(broker_index, brokers_diff)
-            new_replicas = replicas.updated(broker_index, new_broker, CAN_BUILD_FROM)
+            new_replicas = replicas.updated(broker_index, new_broker, CanBuildFrom)
             plan += Scala::Tuple.new(tp, new_replicas)
           else
             raise InsufficientBrokersRemainingError, %(#{brokers.size} remaining brokers, #{replicas.size} replicas needed)
@@ -36,8 +36,6 @@ module Ktl
     end
 
     private
-
-    CAN_BUILD_FROM = Scala::Collection::Immutable::List.can_build_from
 
     def elect_new_broker(broker_index, diff)
       if broker_index.zero?
@@ -50,11 +48,12 @@ module Ktl
       new_broker
     end
 
-    def count_leaders_and_replicas(map)
-      map.foreach do |element|
-        isr = element.last.leader_and_isr.isr
+    def count_leaders_and_replicas(leader_info, assignments)
+      leader_info.foreach do |element|
+        topic_partition = element.first
+        replicas = assignments[topic_partition]
         leader = element.last.leader_and_isr.leader
-        isr.foreach do |broker|
+        replicas.foreach do |broker|
           if broker == leader
             @leaders_count[broker] += 1
           else
@@ -65,7 +64,7 @@ module Ktl
     end
 
     def topics_from(partitions)
-      partitions.map(proc { |tp| tp.topic }, Scala::Collection::Immutable::List.can_build_from).to_seq
+      partitions.map(proc { |tp| tp.topic }, CanBuildFrom).to_seq
     end
   end
 end

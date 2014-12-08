@@ -8,13 +8,14 @@ module Ktl
     def migrate
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
-        migration_plan = MigrationPlan.new(zk_client, old_leader, new_leader).generate
-        say 'moving %d partitions from %d to %d' % [migration_plan.size, old_leader, new_leader]
-        Kafka::Admin.reassign_partitions(zk_client.raw_client, migration_plan)
+        plan = MigrationPlan.new(zk_client, old_leader, new_leader)
+        reassigner = Reassigner.new(:migrate, zk_client)
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
       end
     end
 
-    desc 'preferred-replica', 'perform preferred replica leader elections'
+    desc 'preferred-replica [REGEXP]', 'perform preferred replica leader elections'
     def preferred_replica(regexp='.*')
       with_zk_client do |zk_client|
         regexp = Regexp.new(regexp)
@@ -29,21 +30,37 @@ module Ktl
       end
     end
 
-    desc 'balance', 'balance topics and partitions between brokers'
+    desc 'balance [REGEXP]', 'balance topics and partitions between brokers'
     def balance(regexp='.*')
       with_zk_client do |zk_client|
-        plan = BalancePlan.new(zk_client, regexp).generate
-        say 'reassigning %d partitions' % plan.size
-        Kafka::Admin.reassign_partitions(zk_client.raw_client, plan)
+        plan = BalancePlan.new(zk_client, regexp)
+        reassigner = Reassigner.new(:balance, zk_client)
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
       end
     end
 
-    desc 'decommission', 'decommission a broker'
+    desc 'decommission BROKER_ID', 'decommission a broker'
     def decommission(broker_id)
       with_zk_client do |zk_client|
-        plan = DecommissionPlan.new(zk_client, broker_id.to_i).generate
-        say 'reassigning %d partitions' % plan.size
-        Kafka::Admin.reassign_partitions(zk_client.raw_client, plan)
+        plan = DecommissionPlan.new(zk_client, broker_id.to_i)
+        reassigner = Reassigner.new(:decommission, zk_client)
+        task = ReassignmentTask.new(reassigner, plan, shell)
+        task.execute
+      end
+    end
+
+    desc 'progress COMMAND', 'show progress of a reassignment command'
+    option :verbose, aliases: %w[-v], desc: 'verbose output'
+    def progress(command)
+      if %w[migrate balance decommission].include?(command)
+        with_zk_client do |zk_client|
+          progress = ReassignmentProgress.new(zk_client, command, options)
+          progress.display(shell);
+        end
+      else
+        raise Thor::Error,
+          shell.set_color('Error: ', :red) << %(#{command.inspect} must be one of migrate, balance or decommission)
       end
     end
   end

@@ -10,13 +10,15 @@ module Ktl
 
     def generate
       plan = Scala::Collection::Map.empty
-      partitions = ScalaEnumerable.new(@zk_client.all_partitions)
-      partitions.each do |tp|
-        replicas = @zk_client.replicas_for_partition(tp.topic, tp.partition)
+      topics = @zk_client.all_topics
+      assignments = ScalaEnumerable.new(@zk_client.replica_assignment_for_topics(topics))
+      assignments.each do |item|
+        topic_partition = item.first
+        replicas = item.last
         if replicas.contains?(@old_leader)
           index = replicas.index_of(@old_leader)
-          new_replicas = replicas.updated(index, @new_leader, Scala::Collection::Immutable::List.can_build_from)
-          plan += Scala::Tuple.new(tp, new_replicas)
+          new_replicas = replicas.updated(index, @new_leader, CanBuildFrom)
+          plan += Scala::Tuple.new(topic_partition, new_replicas)
         end
       end
       plan
