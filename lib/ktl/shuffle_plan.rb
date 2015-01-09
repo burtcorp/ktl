@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 module Ktl
-  class BalancePlan
+  class ShufflePlan
     def initialize(zk_client, filter)
       @zk_client = zk_client
       @filter = Regexp.new(filter)
@@ -15,11 +15,10 @@ module Ktl
       replica_assignments = @zk_client.replica_assignment_for_topics(topics)
       brokers = @zk_client.broker_ids
       reassignment_plan = Scala::Collection::Map.empty
-      start_index = 0
       topics_partitions.each do |tp|
         topic, partitions = tp.elements
         nr_replicas = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, 0)).size
-        assignment = Kafka::Admin.assign_replicas_to_brokers(brokers, partitions.size, nr_replicas, start_index)
+        assignment = Kafka::Admin.assign_replicas_to_brokers(brokers, partitions.size, nr_replicas)
         assignment.each do |pr|
           partition, replicas = pr.elements
           topic_partition = Kafka::TopicAndPartition.new(topic, partition)
@@ -28,7 +27,6 @@ module Ktl
             reassignment_plan += Scala::Tuple.new(topic_partition, replicas)
           end
         end
-        start_index = (start_index + 1) % brokers.size
       end
       reassignment_plan
     end

@@ -88,7 +88,7 @@ module Kafka
       command.move_leader_to_preferred_replica
     end
 
-    def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=0, partition=0)
+    def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=-1, partition=-1)
       assignment = AdminUtils.assign_replicas_to_brokers(brokers, partitions, repl_factor, index, partition)
       ScalaEnumerable.new(assignment)
     end

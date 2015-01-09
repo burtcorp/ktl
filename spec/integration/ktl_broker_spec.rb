@@ -154,16 +154,9 @@ describe 'bin/ktl broker' do
     end
   end
 
-  describe 'balance' do
+  describe 'shuffle' do
     let :command do
-      'balance'
-    end
-
-    let :reassigned_partitions do
-      [
-        a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0]),
-        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [1, 0]),
-      ]
+      'shuffle'
     end
 
     before do
@@ -176,43 +169,22 @@ describe 'bin/ktl broker' do
 
     it 'kick-starts a partition reassignment command' do
       interactive(%w[y]) do
-        silence { run(%w[broker balance], zk_args) }
+        silence { run(%w[broker shuffle], zk_args) }
       end
-      expect(partitions).to match(reassigned_partitions)
-    end
-
-    it 'ignores assignments that are identical to current assignments' do
-      interactive(%w[y]) do
-        silence { run(%w[broker balance ^topic1$], zk_args) }
-      end
-      expect(partitions).to_not match [
-        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
-        a_hash_including('topic' => 'topic2', 'partition' => 1, 'replicas' => [0, 1]),
-      ]
+      expect(partitions).to_not be_empty
     end
 
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         interactive(%w[y]) do
-          silence { run(%w[broker balance ^topic1$], zk_args) }
+          silence { run(%w[broker shuffle ^topic1$], zk_args) }
         end
+        p [:partitions, partitions]
         expect(partitions).to match [
-          a_hash_including('topic' => 'topic1', 'partition' => 1, 'replicas' => [1, 0])
-        ]
-      end
-
-      it 'ignores assignments that are identical to current assignments' do
-        interactive(%w[y]) do
-          silence { run(%w[broker balance ^topic1$], zk_args) }
-        end
-        expect(partitions).to_not match [
-          a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
+          a_hash_including('topic' => 'topic1')
         ]
       end
     end
-
-    include_examples 'overflow znodes'
-    include_examples 'progress znodes'
   end
 
   describe 'decommission' do
@@ -259,7 +231,7 @@ describe 'bin/ktl broker' do
     end
 
     let :command_args do
-      %w[balance]
+      %w[shuffle]
     end
 
     context 'when there is an active reassignment in progress' do
@@ -269,12 +241,12 @@ describe 'bin/ktl broker' do
           create_topic(topic, %w[--partitions 2 --replication-factor 2 --replica-assignment 0:1,0:1])
           create_partitions(topic, partitions: 2, isr: [0, 1])
         end
-        silence { run(%w[broker balance], zk_args) }
+        silence { run(%w[broker shuffle], zk_args) }
       end
 
       context 'with -v / --verbose flag' do
         let :command_args do
-          %w[balance -v]
+          %w[shuffle -v]
         end
 
         it 'prints the number of remaining reassignments' do
@@ -283,8 +255,7 @@ describe 'bin/ktl broker' do
 
         it 'outputs a table of reassignments' do
           expect(console_output).to match(/topic\s+partition\s+replicas/)
-          expect(console_output).to match(/topic1\s+1\s+\[1, 0\]/)
-          expect(console_output).to match(/topic2\s+0\s+\[1, 0\]/)
+          expect(console_output.size).to be > 2
         end
       end
 

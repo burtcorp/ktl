@@ -4,7 +4,7 @@ require 'spec_helper'
 
 
 module Ktl
-  describe BalancePlan do
+  describe ShufflePlan do
     let :plan do
       described_class.new(zk_client, filter)
     end
@@ -63,23 +63,6 @@ module Ktl
         generated_plan = plan.generate
         expect(generated_plan).to be_a(Scala::Collection::Immutable::Map)
         expect(generated_plan.size).to eq(2)
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic1', 1)]).to eq(scala_int_list([1, 0]))
-        expect(generated_plan[Kafka::TopicAndPartition.new('topic2', 1)]).to eq(scala_int_list([0, 1]))
-      end
-
-      it 'ignores assignments that are identical to current assignments' do
-        generated_plan = plan.generate
-        expect(generated_plan.contains?(Kafka::TopicAndPartition.new('topic1', 0))).to eq(false)
-        expect(generated_plan.contains?(Kafka::TopicAndPartition.new('topic2', 0))).to eq(false)
-      end
-
-      it 'returns an (almost) deterministic assignment plan' do
-        first_plan = plan.generate
-        second_plan = described_class.new(zk_client, filter).generate
-        topics.foreach do |t|
-          tp = Kafka::TopicAndPartition.new(t, 1)
-          expect(first_plan[tp]).to eq(second_plan[tp])
-        end
       end
 
       context 'with a non catch-all filter' do
@@ -104,11 +87,11 @@ module Ktl
 
         it 'only includes filtered topics' do
           generated_plan = plan.generate
-          tp = Kafka::TopicAndPartition.new('topic1', 1)
-          expect(generated_plan.contains?(tp)).to be true
-          expect(generated_plan[tp].size).to be > 1
-          tp = Kafka::TopicAndPartition.new('topic2', 1)
-          expect(generated_plan.contains?(tp)).to be false
+          expect(generated_plan.size).to be >= 1
+          generated_plan.foreach do |element|
+            expect(element.first.topic).to eq('topic1')
+            expect(element.first.topic).to_not eq('topic2')
+          end
         end
       end
     end

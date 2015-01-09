@@ -30,11 +30,11 @@ module Ktl
       end
     end
 
-    desc 'balance [REGEXP]', 'balance topics and partitions between brokers'
-    def balance(regexp='.*')
+    desc 'shuffle [REGEXP]', 'shuffle leadership and replicas for partitions'
+    def shuffle(regexp='.*')
       with_zk_client do |zk_client|
-        plan = BalancePlan.new(zk_client, regexp)
-        reassigner = Reassigner.new(:balance, zk_client)
+        plan = ShufflePlan.new(zk_client, regexp)
+        reassigner = Reassigner.new(:shuffle, zk_client)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
       end
@@ -53,7 +53,7 @@ module Ktl
     desc 'progress COMMAND', 'show progress of a reassignment command'
     option :verbose, aliases: %w[-v], desc: 'verbose output'
     def progress(command)
-      if %w[migrate balance decommission].include?(command)
+      if %w[migrate shuffle decommission].include?(command)
         with_zk_client do |zk_client|
           progress = ReassignmentProgress.new(zk_client, command, options)
           progress.display(shell);
