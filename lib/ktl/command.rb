@@ -12,7 +12,7 @@ module Ktl
     rescue => e
       say 'Error: %s (%s)' % [e.message, e.class.name], :red
     ensure
-      zk_client.close
+      zk_client.close if zk_client
     end
   end
 end
