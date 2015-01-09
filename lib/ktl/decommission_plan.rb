@@ -16,7 +16,7 @@ module Ktl
       partitions = @zk_client.all_partitions
       topics = topics_from(partitions)
       assignments = @zk_client.replica_assignment_for_topics(topics)
-      count_leaders_and_replicas(@zk_client.leader_and_isr_for(partitions), assignments)
+      count_leaders_and_replicas(assignments)
       partitions = ScalaEnumerable.new(partitions).sort_by { |tp| tp.topic + tp.partition.to_s }
       partitions.each do |tp|
         replicas = assignments[tp]
@@ -39,22 +39,20 @@ module Ktl
 
     def elect_new_broker(broker_index, diff)
       if broker_index.zero?
-        new_broker = diff.min_by { |broker| @replicas_count[broker] }
-        @replicas_count[new_broker] += 1
-      else
         new_broker = diff.min_by { |broker| @leaders_count[broker] }
         @leaders_count[new_broker] += 1
+      else
+        new_broker = diff.min_by { |broker| @replicas_count[broker] }
+        @replicas_count[new_broker] += 1
       end
       new_broker
     end
 
-    def count_leaders_and_replicas(leader_info, assignments)
-      leader_info.foreach do |element|
-        topic_partition = element.first
-        replicas = assignments[topic_partition]
-        leader = element.last.leader_and_isr.leader
-        replicas.foreach do |broker|
-          if broker == leader
+    def count_leaders_and_replicas(assignments)
+      assignments.foreach do |assignment|
+        replicas = ScalaEnumerable.new(assignment.last)
+        replicas.each_with_index do |broker, index|
+          if index.zero?
             @leaders_count[broker] += 1
           else
             @replicas_count[broker] += 1

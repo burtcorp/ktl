@@ -44,22 +44,11 @@ module Ktl
       a
     end
 
-    let :leader_isr do
-      l = Scala::Collection::Mutable::HashMap.new
-      assignments.foreach do |elem|
-        tp, r = elem.elements
-        leader_and_isr = double(isr: r, leader: r.first)
-        l.put(tp, double(leader_and_isr: leader_and_isr))
-      end
-      l
-    end
-
     describe '#generate' do
       before do
         allow(zk_client).to receive(:broker_ids).and_return(brokers)
         allow(zk_client).to receive(:all_partitions).and_return(partitions)
         allow(zk_client).to receive(:replica_assignment_for_topics).and_return(assignments)
-        allow(zk_client).to receive(:leader_and_isr_for).and_return(leader_isr)
       end
 
       it 'returns a non-empty Scala::Collection::Immutable::Map object' do
