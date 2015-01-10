@@ -254,7 +254,7 @@ describe 'bin/ktl broker' do
         end
 
         it 'outputs a table of reassignments' do
-          expect(console_output).to match(/topic\s+partition\s+replicas/)
+          expect(console_output).to match(/topic\s+assignments/)
           expect(console_output.size).to be > 2
         end
       end

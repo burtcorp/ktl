@@ -15,7 +15,7 @@ module Ktl
       if in_progress && !in_progress.empty?
         original_size, remaining_size = original.size, in_progress.size
         done_percentage = (original_size - remaining_size).fdiv(original_size) * 100
-        shell.say 'remaining partitions to reassign: %d (%.f%% done)' % [remaining_size, done_percentage]
+        shell.say 'remaining partitions to reassign: %d (%.2f%% done)' % [remaining_size, done_percentage]
         if @options[:verbose]
           shell.print_table(table_data(in_progress), indent: 2)
         end
@@ -51,10 +51,13 @@ module Ktl
     end
 
     def table_data(reassignments)
-      table = reassignments.map do |r|
-        r.values_at(*%w[topic partition replicas])
-      end.sort_by { |r| [r[0], r[1]] }
-      table.unshift(%w[topic partition replicas])
+      topics = reassignments.group_by { |r| r['topic'] }
+      table = topics.map do |t, r|
+        reassignments = r.sort_by { |r| r['partition'] }
+        reassignments = reassignments.map { |r| '%d => %s' % [r['partition'], r['replicas'].inspect] }.join(', ')
+        [t, reassignments]
+      end.sort_by(&:first)
+      table.unshift(%w[topic assignments])
       table
     end
 

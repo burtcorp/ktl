@@ -51,7 +51,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (0% done)')
+          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (0.00% done)')
         end
 
         context 'with :verbose => true' do
@@ -61,8 +61,8 @@ module Ktl
 
           it 'prints a table with the remaining reassignments' do
             expect(shell).to have_received(:print_table).with([
-              %w[topic partition replicas],
-              ['topic1', 0, [0]]
+              %w[topic assignments],
+              ['topic1', '0 => [0]']
             ], anything)
           end
         end
@@ -127,9 +127,9 @@ module Ktl
 
             it 'prints a table with the remaining reassignments' do
               expect(shell).to have_received(:print_table).with([
-                %w[topic partition replicas],
-                ['topic2', 0, [0]],
-                ['topic3', 0, [0]],
+                %w[topic assignments],
+                ['topic2', '0 => [0]'],
+                ['topic3', '0 => [0]'],
               ], anything)
             end
           end
@@ -165,7 +165,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (50% done)')
+          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (50.00% done)')
         end
 
         context 'with :verbose => true' do
@@ -175,8 +175,8 @@ module Ktl
 
           it 'prints a table with the remaining reassignments' do
             expect(shell).to have_received(:print_table).with([
-              %w[topic partition replicas],
-              ['topic2', 0, [0]]
+              %w[topic assignments],
+              ['topic2', '0 => [0]']
             ], anything)
           end
         end
