@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-gem 'kafka-jars', '= 0.8.1.1.pre1'
+gem 'kafka-jars', '= 0.8.2.0.pre0'
 gem 'thor'
 
 group :test do
