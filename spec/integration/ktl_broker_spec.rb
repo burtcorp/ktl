@@ -179,7 +179,6 @@ describe 'bin/ktl broker' do
         interactive(%w[y]) do
           silence { run(%w[broker shuffle ^topic1$], zk_args) }
         end
-        p [:partitions, partitions]
         expect(partitions).to match [
           a_hash_including('topic' => 'topic1')
         ]
@@ -275,7 +274,7 @@ describe 'bin/ktl broker' do
     context 'when called with an invalid command' do
       it 'prints an error message' do
         console_output = capture(:stderr) { run(%w[broker progress], %w[hello] + zk_args) }
-        expect(console_output).to match('Error: "hello" must be one of migrate, balance or decommission')
+        expect(console_output).to match('Error: "hello" must be one of migrate, shuffle or decommission')
       end
     end
   end

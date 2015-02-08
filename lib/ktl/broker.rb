@@ -60,7 +60,7 @@ module Ktl
         end
       else
         raise Thor::Error,
-          shell.set_color('Error: ', :red) << %(#{command.inspect} must be one of migrate, balance or decommission)
+          shell.set_color('Error: ', :red) << %(#{command.inspect} must be one of migrate, shuffle or decommission)
       end
     end
   end
