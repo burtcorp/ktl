@@ -84,8 +84,7 @@ module Kafka
     end
 
     def self.preferred_replica(zk_client, topics_partitions)
-      command = PreferredReplicaLeaderElectionCommand.new(zk_client, topics_partitions)
-      command.move_leader_to_preferred_replica
+      PreferredReplicaLeaderElectionCommand.write_preferred_replica_election_data(zk_client, topics_partitions)
     end
 
     def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=-1, partition=-1)
