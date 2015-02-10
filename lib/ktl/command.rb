@@ -2,7 +2,6 @@
 
 module Ktl
   class Command < Thor
-    class_option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
 
     protected
 

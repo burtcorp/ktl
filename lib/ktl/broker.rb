@@ -5,6 +5,7 @@ module Ktl
     desc 'migrate', 'migrate partitions from one broker to another'
     option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'broker id of old leader'
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'broker id of new leader'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def migrate
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
@@ -16,6 +17,7 @@ module Ktl
     end
 
     desc 'preferred-replica [REGEXP]', 'perform preferred replica leader elections'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def preferred_replica(regexp='.*')
       with_zk_client do |zk_client|
         regexp = Regexp.new(regexp)
@@ -31,6 +33,7 @@ module Ktl
     end
 
     desc 'shuffle [REGEXP]', 'shuffle leadership and replicas for partitions'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan = ShufflePlan.new(zk_client, regexp)
@@ -41,6 +44,7 @@ module Ktl
     end
 
     desc 'decommission BROKER_ID', 'decommission a broker'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def decommission(broker_id)
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
@@ -52,6 +56,7 @@ module Ktl
 
     desc 'progress COMMAND', 'show progress of a reassignment command'
     option :verbose, aliases: %w[-v], desc: 'verbose output'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def progress(command)
       if %w[migrate shuffle decommission].include?(command)
         with_zk_client do |zk_client|
