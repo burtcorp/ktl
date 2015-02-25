@@ -117,4 +117,55 @@ module Ktl
       include_examples 'a shuffle plan'
     end
   end
+
+  describe RendezvousShufflePlan do
+    let :plan do
+      described_class.new(zk_client, filter)
+    end
+
+    describe '#generate' do
+      include_examples 'a shuffle plan'
+
+      def each_reassignment(scala_reassignments)
+        ScalaEnumerable.new(scala_reassignments).each_with_object({}) do |t, result|
+          yield t.first.topic, t.first.partition, ScalaEnumerable.new(t.last).to_a
+        end
+      end
+
+      def apply_reassignments(scala_reassignments)
+        each_reassignment(scala_reassignments) do |topic, partition, brokers|
+          assignments[topic][partition] = brokers
+        end
+      end
+
+      context 'when adding brokers' do
+        before do
+          apply_reassignments(plan.generate)
+          brokers << 0xb3
+        end
+
+        it 'does not reassign leader to anything but the new broker' do
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            expect(brokers[0]).to satisfy { |leader| leader == 0xb3 || leader == assignments[topic][partition][0] }
+          end
+        end
+
+        it 'demotes remaining brokers if new leader elected' do
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            if brokers[0] == 0xb3
+              expect(brokers.drop(1)).to eq(assignments[topic][partition].take(replica_count-1))
+            end
+          end
+        end
+
+        it 'does not reassign followers to anything but the new broker' do
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            unless brokers[0] == 0xb3
+              expect(brokers[1]).to satisfy { |follower| follower == 0xb3 || follower == assignments[topic][partition][1] }
+            end
+          end
+        end
+      end
+    end
+  end
 end

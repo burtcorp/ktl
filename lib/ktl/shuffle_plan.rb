@@ -18,7 +18,7 @@ module Ktl
       topics_partitions.each do |tp|
         topic, partitions = tp.elements
         nr_replicas = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, 0)).size
-        assignment = Kafka::Admin.assign_replicas_to_brokers(brokers, partitions.size, nr_replicas)
+        assignment = assign_replicas_to_brokers(topic, brokers, partitions.size, nr_replicas)
         assignment.each do |pr|
           partition, replicas = pr.elements
           topic_partition = Kafka::TopicAndPartition.new(topic, partition)
@@ -30,5 +30,31 @@ module Ktl
       end
       reassignment_plan
     end
+
+    private
+
+    def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
+      Kafka::Admin.assign_replicas_to_brokers(brokers, partition_count, replica_count)
+    end
+  end
+
+  class RendezvousShufflePlan < ShufflePlan
+    def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
+      brokers = ScalaEnumerable.new(brokers).to_a
+      result = []
+      partition_count.times do |partition|
+        sorted = brokers.sort_by do |broker|
+          key = [partition, topic, broker].pack('l<a*l<')
+          Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)
+        end
+        selected = sorted.take(replica_count)
+        result.push(Scala::Tuple.new(partition, Scala::Collection::JavaConversions.as_scala_iterable(selected).to_list))
+      end
+      result
+    end
+
+    private
+
+    SEED = 1683520333
   end
 end
