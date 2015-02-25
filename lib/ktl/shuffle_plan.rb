@@ -2,15 +2,16 @@
 
 module Ktl
   class ShufflePlan
-    def initialize(zk_client, filter, options = {})
+    def initialize(zk_client, options = {})
       @zk_client = zk_client
-      @filter = filter
       @options = options
     end
 
     def generate
       topics = @zk_client.all_topics
-      topics = topics.filter { |t| !!t.match(@filter) }
+      if (filter = @options[:filter])
+        topics = topics.filter { |t| !!t.match(filter) }
+      end
       topics_partitions = ScalaEnumerable.new(@zk_client.partitions_for_topics(topics))
       topics_partitions = topics_partitions.sort_by(&:first)
       replica_assignments = @zk_client.replica_assignment_for_topics(topics)

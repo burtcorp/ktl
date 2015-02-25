@@ -6,15 +6,11 @@ require 'spec_helper'
 module Ktl
   shared_examples 'a shuffle plan' do
     let :plan do
-      described_class.new(zk_client, filter, options)
+      described_class.new(zk_client, options)
     end
 
     let :zk_client do
       double(:zk_client)
-    end
-
-    let :filter do
-      //
     end
 
     let :options do
@@ -107,13 +103,13 @@ module Ktl
     end
 
     context 'with a non catch-all filter' do
-      let :filter do
-        /^topic1$/
+      let :options do
+        super.merge(filter: /^topic1$/)
       end
 
       it 'fetches replica assignments only for filtered topics' do
         plan.generate
-        expect(zk_client).to have_received(:replica_assignment_for_topics).with(scala_list(assignments.keys.grep(filter)))
+        expect(zk_client).to have_received(:replica_assignment_for_topics).with(scala_list(assignments.keys.grep(options[:filter])))
       end
 
       it 'does not include topics not included by the filter' do

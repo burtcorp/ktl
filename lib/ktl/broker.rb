@@ -36,8 +36,7 @@ module Ktl
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
-        regexp = Regexp.new(regexp)
-        plan = ShufflePlan.new(zk_client, regexp)
+        plan = ShufflePlan.new(zk_client, filter: Regexp.new(regexp))
         reassigner = Reassigner.new(:shuffle, zk_client)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
