@@ -98,6 +98,14 @@ module Ktl
       end
     end
 
+    it 'raises an error if too few brokers' do
+      assignments # force evaluation
+      brokers.clear
+      expect do
+        plan.generate
+      end.to raise_error(ArgumentError, /replication factor: #{replica_count} larger than available brokers: 0/)
+    end
+
     context 'with a non catch-all filter' do
       let :filter do
         /^topic1$/
