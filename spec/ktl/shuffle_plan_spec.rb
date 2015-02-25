@@ -14,7 +14,7 @@ module Ktl
     end
 
     let :filter do
-      '.*'
+      //
     end
 
     describe '#generate' do
@@ -67,7 +67,7 @@ module Ktl
 
       context 'with a non catch-all filter' do
         let :filter do
-          '^topic1$'
+          /^topic1$/
         end
 
         let :filtered_topics do

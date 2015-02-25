@@ -4,7 +4,7 @@ module Ktl
   class ShufflePlan
     def initialize(zk_client, filter)
       @zk_client = zk_client
-      @filter = Regexp.new(filter)
+      @filter = filter
     end
 
     def generate
