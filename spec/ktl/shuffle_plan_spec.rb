@@ -4,11 +4,7 @@ require 'spec_helper'
 
 
 module Ktl
-  describe ShufflePlan do
-    let :plan do
-      described_class.new(zk_client, filter)
-    end
-
+  shared_examples 'a shuffle plan' do
     let :zk_client do
       double(:zk_client)
     end
@@ -101,5 +97,13 @@ module Ktl
         end
       end
     end
+  end
+
+  describe ShufflePlan do
+    let :plan do
+      described_class.new(zk_client, filter)
+    end
+
+    include_examples 'a shuffle plan'
   end
 end
