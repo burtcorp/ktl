@@ -5,12 +5,20 @@ require 'spec_helper'
 
 module Ktl
   shared_examples 'a shuffle plan' do
+    let :plan do
+      described_class.new(zk_client, filter, options)
+    end
+
     let :zk_client do
       double(:zk_client)
     end
 
     let :filter do
       //
+    end
+
+    let :options do
+      {}
     end
 
     let :brokers do
@@ -106,23 +114,44 @@ module Ktl
         end
       end
     end
+
+    context 'with custom broker selection' do
+      let :options do
+        super.merge(brokers: [0xb7, 0xb8])
+      end
+
+      it 'generates mappings with only particular brokers' do
+        plan.generate.values.foreach do |value|
+          expect(ScalaEnumerable.new(value).to_a).to contain_exactly(0xb7, 0xb8)
+        end
+      end
+    end
+
+    context 'with blacklisted brokers' do
+      before do
+        brokers << 0xb3
+
+      end
+
+      let :options do
+        super.merge(blacklist: 0xb1)
+      end
+
+      it 'generates mappings without blacklisted brokers' do
+        plan.generate.values.foreach do |value|
+          expect(ScalaEnumerable.new(value).to_a).to_not include(0xb1)
+        end
+      end
+    end
   end
 
   describe ShufflePlan do
-    let :plan do
-      described_class.new(zk_client, filter)
-    end
-
     describe '#generate' do
       include_examples 'a shuffle plan'
     end
   end
 
   describe RendezvousShufflePlan do
-    let :plan do
-      described_class.new(zk_client, filter)
-    end
-
     describe '#generate' do
       include_examples 'a shuffle plan'
 

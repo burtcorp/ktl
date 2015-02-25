@@ -2,9 +2,10 @@
 
 module Ktl
   class ShufflePlan
-    def initialize(zk_client, filter)
+    def initialize(zk_client, filter, options = {})
       @zk_client = zk_client
       @filter = filter
+      @options = options
     end
 
     def generate
@@ -13,7 +14,7 @@ module Ktl
       topics_partitions = ScalaEnumerable.new(@zk_client.partitions_for_topics(topics))
       topics_partitions = topics_partitions.sort_by(&:first)
       replica_assignments = @zk_client.replica_assignment_for_topics(topics)
-      brokers = @zk_client.broker_ids
+      brokers = select_brokers
       reassignment_plan = Scala::Collection::Map.empty
       topics_partitions.each do |tp|
         topic, partitions = tp.elements
@@ -33,14 +34,20 @@ module Ktl
 
     private
 
+    def select_brokers
+      brokers = @options[:brokers] ? Array(@options[:brokers]) : ScalaEnumerable.new(@zk_client.broker_ids).to_a
+      brokers -= Array(@options[:blacklist]) if @options[:blacklist]
+      brokers
+    end
+
     def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
+      brokers = Scala::Collection::JavaConversions.as_scala_iterable(brokers.map { |x| x.to_java(:int) }).to_list
       Kafka::Admin.assign_replicas_to_brokers(brokers, partition_count, replica_count)
     end
   end
 
   class RendezvousShufflePlan < ShufflePlan
     def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
-      brokers = ScalaEnumerable.new(brokers).to_a
       result = []
       partition_count.times do |partition|
         sorted = brokers.sort_by do |broker|
