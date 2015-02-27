@@ -110,11 +110,17 @@ module Ktl
         allow(zk_client).to receive(:get_children).with('/ktl/overflow/type').and_return(scala_list(%w[0 1]))
         allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/0').and_return([overflow_part_1])
         allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/1').and_return([overflow_part_2])
+        allow(zk_client).to receive(:delete_znode).with('/ktl/overflow/type', recursive: true)
       end
 
       it 'reads overflow from ZK' do
         overflow = reassigner.load_overflow
         expect(overflow.size).to eq(4)
+      end
+
+      it 'unconditionally removes the previous overflow znodes' do
+        reassigner.load_overflow
+        expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
       end
     end
 

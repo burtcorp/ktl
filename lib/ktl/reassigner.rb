@@ -28,6 +28,7 @@ module Ktl
         data = parse_reassignment_json(overflow_json)
         overflow = overflow.send('++', data)
       end
+      delete_previous_overflow
       overflow
     end
 
@@ -55,6 +56,10 @@ module Ktl
 
     def delete_previous_state
       @zk_client.delete_znode(%(/ktl/reassign/#{@type}), recursive: true)
+    end
+
+    def delete_previous_overflow
+      @zk_client.delete_znode(overflow_base_path, recursive: true)
     end
 
     def state_path(index)
