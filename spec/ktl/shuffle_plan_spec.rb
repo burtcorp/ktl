@@ -70,13 +70,13 @@ module Ktl
       expect(plan.generate).to be_a(Scala::Collection::Immutable::Map)
     end
 
-    it 'returns a assignments keyed by topic paritions' do
+    it 'returns an assignment keyed by topic paritions' do
       plan.generate.keys.foreach do |key|
         expect(key).to be_a(Kafka::TopicAndPartition)
       end
     end
 
-    it 'returns a assignments with broker values' do
+    it 'returns an assignment with broker values' do
       plan.generate.values.foreach do |value|
         expect(brokers).to include(*ScalaEnumerable.new(value).to_a)
       end
@@ -134,7 +134,6 @@ module Ktl
     context 'with blacklisted brokers' do
       before do
         brokers << 0xb3
-
       end
 
       let :options do
