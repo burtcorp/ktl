@@ -6,10 +6,6 @@ require 'spec_helper'
 describe 'bin/ktl broker' do
   include_context 'integration setup'
 
-  let :command_args do
-    []
-  end
-
   let :partitions do
     path = Kafka::Utils::ZkUtils.reassign_partitions_path
     fetch_json(path, 'partitions')
@@ -155,10 +151,6 @@ describe 'bin/ktl broker' do
   end
 
   describe 'shuffle' do
-    let :command do
-      'shuffle'
-    end
-
     before do
       register_broker(1)
       %w[topic1 topic2].each do |topic|
