@@ -160,17 +160,13 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      interactive(%w[y]) do
-        silence { run(%w[broker shuffle], zk_args) }
-      end
+      silence { run(%w[broker shuffle], zk_args) }
       expect(partitions).to_not be_empty
     end
 
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
-        interactive(%w[y]) do
-          silence { run(%w[broker shuffle ^topic1$], zk_args) }
-        end
+        silence { run(%w[broker shuffle ^topic1$], zk_args) }
         expect(partitions).to match [
           a_hash_including('topic' => 'topic1')
         ]
@@ -179,9 +175,7 @@ describe 'bin/ktl broker' do
 
     context 'when using rendezvous hashing' do
       it 'kick-starts a partition reassignment command' do
-        interactive(%w[y]) do
-          silence { run(%w[broker shuffle --rendezvous], zk_args) }
-        end
+        silence { run(%w[broker shuffle --rendezvous], zk_args) }
         expect(partitions).to_not be_empty
       end
     end
@@ -215,9 +209,7 @@ describe 'bin/ktl broker' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      interactive(%w[y]) do
-        silence { run(%w[broker decommission], command_args + zk_args) }
-      end
+      silence { run(%w[broker decommission], command_args + zk_args) }
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
