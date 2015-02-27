@@ -184,6 +184,15 @@ describe 'bin/ktl broker' do
         ]
       end
     end
+
+    context 'when using rendezvous hashing' do
+      it 'kick-starts a partition reassignment command' do
+        interactive(%w[y]) do
+          silence { run(%w[broker shuffle --rendezvous], zk_args) }
+        end
+        expect(partitions).to_not be_empty
+      end
+    end
   end
 
   describe 'decommission' do

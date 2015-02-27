@@ -34,9 +34,13 @@ module Ktl
 
     desc 'shuffle [REGEXP]', 'shuffle leadership and replicas for partitions'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    option :brokers, type: :array, desc: 'broker ids'
+    option :blacklist, type: :array, desc: 'blacklisted broker ids'
+    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing based shuffle'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
-        plan = ShufflePlan.new(zk_client, regexp)
+        plan_factory = options.rendezvous ? RendezvousShufflePlan : ShufflePlan
+        plan = plan_factory.new(zk_client, filter: Regexp.new(regexp), brokers: options.brokers, blacklist: options.blacklist)
         reassigner = Reassigner.new(:shuffle, zk_client)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
