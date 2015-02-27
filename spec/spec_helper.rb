@@ -16,4 +16,4 @@ require 'support/cli_helpers'
 require 'support/interactive'
 require 'support/scala_helpers'
 require 'support/integration'
-
+require 'support/kafka_utils'

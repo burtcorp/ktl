@@ -8,9 +8,6 @@ before_install:
   - ssh-add -D
   - chmod 600 id_private
   - ssh-add ./id_private
-  - sudo apt-get update
-  - sudo apt-get install zookeeper zookeeperd
-  - sudo service zookeeper restart && sleep 3 || true
 script: bundle exec rspec
 notifications:
   slack:

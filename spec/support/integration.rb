@@ -1,8 +1,12 @@
 # encoding: utf-8
 
 shared_context 'integration setup' do
+  let :zk_server do
+    Kafka::Test.create_zk_server(zk_uri)
+  end
+
   let :zk_uri do
-    'localhost:2181'
+    'localhost:2185'
   end
 
   let :control_zk do
@@ -58,6 +62,7 @@ shared_context 'integration setup' do
   end
 
   before do
+    zk_server.start
     setup_zk_chroot
   end
 
@@ -65,5 +70,6 @@ shared_context 'integration setup' do
     clear_zk_chroot
     control_zk.close
     ktl_zk.close
+    zk_server.shutdown
   end
 end
