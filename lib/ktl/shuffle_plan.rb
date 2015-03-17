@@ -36,8 +36,8 @@ module Ktl
     private
 
     def select_brokers
-      brokers = @options[:brokers] ? Array(@options[:brokers]) : ScalaEnumerable.new(@zk_client.broker_ids).to_a
-      brokers -= Array(@options[:blacklist]) if @options[:blacklist]
+      brokers = @options[:brokers] ? Array(@options[:brokers]).map(&:to_i) : ScalaEnumerable.new(@zk_client.broker_ids).to_a
+      brokers -= Array(@options[:blacklist]).map(&:to_i) if @options[:blacklist]
       brokers
     end
 
