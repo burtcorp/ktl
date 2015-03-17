@@ -107,6 +107,7 @@ module Ktl
       end
 
       before do
+        allow(zk_client).to receive(:exists?).with('/ktl/overflow/type').and_return(true)
         allow(zk_client).to receive(:get_children).with('/ktl/overflow/type').and_return(scala_list(%w[0 1]))
         allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/0').and_return([overflow_part_1])
         allow(zk_client).to receive(:read_data).with('/ktl/overflow/type/1').and_return([overflow_part_2])
@@ -118,7 +119,7 @@ module Ktl
         expect(overflow.size).to eq(4)
       end
 
-      it 'unconditionally removes the previous overflow znodes' do
+      it 'removes the previous overflow znodes if any exist' do
         reassigner.load_overflow
         expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
       end
@@ -147,6 +148,7 @@ module Ktl
 
         before do
           allow(zk_client).to receive(:delete_znode)
+          allow(zk_client).to receive(:exists?).and_return(true)
         end
 
         it 'does not split the reassignment' do
@@ -154,8 +156,9 @@ module Ktl
           expect(zk_client).to have_received(:reassign_partitions).with(json)
         end
 
-        it 'unconditionally removes previous overflow znodes' do
+        it 'removes previous overflow znodes' do
           reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:exists?).with('/ktl/overflow/type')
           expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
         end
 
@@ -164,8 +167,9 @@ module Ktl
           expect(zk_client).to have_received(:create_znode).with('/ktl/reassign/type/0', json)
         end
 
-        it 'unconditionally removes previous state znodes' do
+        it 'removes previous state znodes' do
           reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:exists?).with('/ktl/reassign/type')
           expect(zk_client).to have_received(:delete_znode).with('/ktl/reassign/type', recursive: true)
         end
       end
@@ -213,7 +217,15 @@ module Ktl
             end
           end
           allow(zk_client).to receive(:delete_znode).with('/ktl/reassign/type', recursive: true)
+          allow(zk_client).to receive(:delete_znode).with('/ktl/overflow/type', recursive: true)
+          allow(zk_client).to receive(:exists?).with('/ktl/overflow/type').and_return(true)
+          allow(zk_client).to receive(:exists?).with('/ktl/reassign/type').and_return(true)
           reassigner.execute(reassignment)
+        end
+
+        it 'removes previous overflow znodes if they exist' do
+          expect(zk_client).to have_received(:exists?).with('/ktl/overflow/type')
+          expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
         end
 
         it 'splits the reassignment' do

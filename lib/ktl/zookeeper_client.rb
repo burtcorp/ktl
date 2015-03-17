@@ -79,6 +79,10 @@ module Ktl
       @utils.get_children(@client, path)
     end
 
+    def exists?(path)
+      @utils.path_exists(@client, path)
+    end
+
     private
 
     CONCURRENCY = 8

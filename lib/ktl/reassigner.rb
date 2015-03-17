@@ -55,11 +55,16 @@ module Ktl
     end
 
     def delete_previous_state
-      @zk_client.delete_znode(%(/ktl/reassign/#{@type}), recursive: true)
+      state_path = %(/ktl/reassign/#{@type})
+      if @zk_client.exists?(state_path)
+        @zk_client.delete_znode(state_path, recursive: true)
+      end
     end
 
     def delete_previous_overflow
-      @zk_client.delete_znode(overflow_base_path, recursive: true)
+      if @zk_client.exists?(overflow_base_path)
+        @zk_client.delete_znode(overflow_base_path, recursive: true)
+      end
     end
 
     def state_path(index)
@@ -67,11 +72,8 @@ module Ktl
     end
 
     def manage_overflow(reassignments)
-      if reassignments.any?
-        write_overflow(reassignments)
-      else
-        delete_old_overflow
-      end
+      delete_previous_overflow
+      write_overflow(reassignments)
     end
 
     def overflow_base_path
@@ -87,10 +89,6 @@ module Ktl
         overflow_json = reassignment_json(reassignment)
         @zk_client.create_znode(overflow_path(index), overflow_json)
       end
-    end
-
-    def delete_old_overflow
-      @zk_client.delete_znode(overflow_base_path, recursive: true)
     end
 
     def reassignment_json(reassignment)
