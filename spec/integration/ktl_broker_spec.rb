@@ -65,9 +65,7 @@ describe 'bin/ktl broker' do
 
       it 'writes the reassignment json to a `reassign` state prefix' do
         indices = ktl_zk.get_children(%(/ktl/reassign/#{command}))
-        partitions = indices.map do |i|
-          fetch_json(%(/ktl/reassign/#{command}/#{i}), 'partitions')
-        end.reduce(&:merge)
+        partitions = fetch_json(%(/ktl/reassign/#{command}), 'partitions')
         expect(partitions).to contain_exactly(*reassigned_partitions)
       end
     end

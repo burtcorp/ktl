@@ -22,32 +22,12 @@ module Ktl
       else
         shell.say 'no partitions remaining to reassign'
       end
-      queued = find_queued_reassignments
-      if queued.any?
-        shell.say 'there are %d queued reassignments' % queued.size
-        if @options[:verbose]
-          queued = queued.flat_map { |r| r['partitions'] }
-          shell.print_table(table_data(queued), indent: 2)
-        end
-      end
     end
 
     private
 
     def state_path
       @state_path ||= '/ktl/reassign/%s' % @command.to_s
-    end
-
-    def state_znodes
-      ScalaEnumerable.new(@zk_client.get_children(state_path)).sort
-    end
-
-    def find_queued_reassignments
-      znodes = state_znodes
-      znodes.shift
-      znodes.map { |z| read_json(%(#{state_path}/#{z})) }
-    rescue ZkClient::Exception::ZkNoNodeException
-      []
     end
 
     def table_data(reassignments)
@@ -68,8 +48,7 @@ module Ktl
     end
 
     def original_reassignment
-      znode = state_znodes.first
-      read_json(%(#{state_path}/#{znode})).fetch('partitions')
+      read_json(state_path).fetch('partitions')
     rescue ZkClient::Exception::ZkNoNodeException
       {}
     end
@@ -79,4 +58,3 @@ module Ktl
     end
   end
 end
-

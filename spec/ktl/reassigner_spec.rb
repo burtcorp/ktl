@@ -126,12 +126,38 @@ module Ktl
     end
 
     describe '#execute' do
-      before do
-        allow(zk_client).to receive(:reassign_partitions)
-        allow(zk_client).to receive(:create_znode).with(/\/ktl\/reassign\/type/, anything)
+      let :reassignments do
+        []
       end
 
-      context 'when the reassignment is less than `json_max_limit`' do
+      let :overflow_znodes do
+        []
+      end
+
+      let :reassign_znodes do
+        []
+      end
+
+      before do
+        allow(zk_client).to receive(:reassign_partitions) do |r|
+          reassignments << JSON.parse(r).fetch('partitions')
+        end
+        allow(zk_client).to receive(:create_znode) do |path, data|
+          if path =~ /\/ktl\/overflow\/.+/
+            overflow_znodes << [path, data]
+          elsif path =~ /\/ktl\/reassign\/.+/
+            reassign_znodes << [path, data]
+          else
+            raise %(Unexpected ZooKeeper path: #{path} (#{data}))
+          end
+        end
+        allow(zk_client).to receive(:delete_znode).with('/ktl/reassign/type', recursive: true)
+        allow(zk_client).to receive(:delete_znode).with('/ktl/overflow/type', recursive: true)
+        allow(zk_client).to receive(:exists?).with('/ktl/overflow/type').and_return(true)
+        allow(zk_client).to receive(:exists?).with('/ktl/reassign/type').and_return(true)
+      end
+
+      context 'when the reassignment is less than 1MB' do
         let :reassignment do
           r = Scala::Collection::Map.empty
           10.times.map do |partition|
@@ -146,11 +172,6 @@ module Ktl
           Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(reassignment)
         end
 
-        before do
-          allow(zk_client).to receive(:delete_znode)
-          allow(zk_client).to receive(:exists?).and_return(true)
-        end
-
         it 'does not split the reassignment' do
           reassigner.execute(reassignment)
           expect(zk_client).to have_received(:reassign_partitions).with(json)
@@ -162,9 +183,9 @@ module Ktl
           expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
         end
 
-        it 'writes the same json to a state path' do
+        it 'writes the same JSON to a state path' do
           reassigner.execute(reassignment)
-          expect(zk_client).to have_received(:create_znode).with('/ktl/reassign/type/0', json)
+          expect(zk_client).to have_received(:create_znode).with('/ktl/reassign/type', json)
         end
 
         it 'removes previous state znodes' do
@@ -174,52 +195,18 @@ module Ktl
         end
       end
 
-      context 'when the reassignment is greater than `json_max_limit`' do
+      context 'when the reassignment is greater than 1MB' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          20_000.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
           end
           r
-        end
-
-        let :scaled_down_json do
-          r = Scala::Collection::Map.empty
-          [3, 4, 9].each do |partition|
-            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
-            replicas = scala_int_list([0, 1, 2])
-            r += Scala::Tuple.new(topic_partition, replicas)
-          end
-          r
-          Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
-        end
-
-        let :options do
-          {json_max_size: 150}
-        end
-
-        let :overflow_znodes do
-          []
-        end
-
-        let :reassign_znodes do
-          []
         end
 
         before do
-          allow(zk_client).to receive(:create_znode) do |path, data|
-            if path =~ /\/ktl\/overflow\/.+/
-              overflow_znodes << [path, data]
-            elsif path =~ /\/ktl\/reassign\/.+/
-              reassign_znodes << [path, data]
-            end
-          end
-          allow(zk_client).to receive(:delete_znode).with('/ktl/reassign/type', recursive: true)
-          allow(zk_client).to receive(:delete_znode).with('/ktl/overflow/type', recursive: true)
-          allow(zk_client).to receive(:exists?).with('/ktl/overflow/type').and_return(true)
-          allow(zk_client).to receive(:exists?).with('/ktl/reassign/type').and_return(true)
           reassigner.execute(reassignment)
         end
 
@@ -228,26 +215,68 @@ module Ktl
           expect(zk_client).to have_received(:delete_znode).with('/ktl/overflow/type', recursive: true)
         end
 
-        it 'splits the reassignment' do
-          expect(zk_client).to have_received(:reassign_partitions).with(scaled_down_json)
+        it 'reassigns partitions' do
+          expect(zk_client).to have_received(:reassign_partitions)
         end
 
-        it 'writes the remaining json to ZK' do
+        it 'writes the remaining JSON to an overflow path in ZK' do
           overflow = Scala::Collection::Map.empty
           overflow = overflow_znodes.reduce(overflow) do |acc, (path, data)|
             data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
-          expect(overflow.size).to eq(7)
+          expect(overflow.size).to eq(10_000)
         end
 
-        it 'writes the same json to a state path, splitted' do
-          reassign = Scala::Collection::Map.empty
-          reassign = reassign_znodes.reduce(reassign) do |acc, (path, data)|
+        it 'writes the same JSON to a state path' do
+          state = Scala::Collection::Map.empty
+          state = reassign_znodes.reduce(state) do |acc, (path, data)|
             data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
-          expect(reassign.size).to eq(10)
+          expect(state.size).to eq(10_000)
+        end
+      end
+
+      context 'with a limit' do
+        let :options do
+          {limit: 20}
+        end
+
+        let :reassignment do
+          r = Scala::Collection::Map.empty
+          100.times.map do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        before do
+          reassigner.execute(reassignment)
+        end
+
+        it 'splits the reassignment' do
+          expect(reassignments.first.size).to eq(20)
+        end
+
+        it 'writes the remaining JSON to an overflow path in ZK' do
+          overflow = Scala::Collection::Map.empty
+          overflow = overflow_znodes.reduce(overflow) do |acc, (path, data)|
+            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            acc.send('++', data)
+          end
+          expect(overflow.size).to eq(80)
+        end
+
+        it 'writes the same JSON to a state path' do
+          reassigned = Scala::Collection::Map.empty
+          reassigned = reassign_znodes.reduce(reassigned) do |acc, (path, data)|
+            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            acc.send('++', data)
+          end
+          expect(reassigned.size).to eq(20)
         end
       end
     end

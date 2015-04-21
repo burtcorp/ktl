@@ -6,11 +6,12 @@ module Ktl
     option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'broker id of old leader'
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'broker id of new leader'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
     def migrate
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
-        reassigner = Reassigner.new(:migrate, zk_client)
+        reassigner = Reassigner.new(:migrate, zk_client, limit: options.limit)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
       end
@@ -37,11 +38,12 @@ module Ktl
     option :brokers, type: :array, desc: 'broker ids'
     option :blacklist, type: :array, desc: 'blacklisted broker ids'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing based shuffle'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = options.rendezvous ? RendezvousShufflePlan : ShufflePlan
         plan = plan_factory.new(zk_client, filter: Regexp.new(regexp), brokers: options.brokers, blacklist: options.blacklist)
-        reassigner = Reassigner.new(:shuffle, zk_client)
+        reassigner = Reassigner.new(:shuffle, zk_client, limit: options.limit)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
       end
@@ -49,10 +51,11 @@ module Ktl
 
     desc 'decommission BROKER_ID', 'decommission a broker'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
     def decommission(broker_id)
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
-        reassigner = Reassigner.new(:decommission, zk_client)
+        reassigner = Reassigner.new(:decommission, zk_client, limit: options.limit)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute
       end

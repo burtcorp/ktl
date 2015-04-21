@@ -41,8 +41,7 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:get_children).with('/ktl/reassign/command').and_return(scala_list(%w[0]))
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/0').and_return([reassignment_json])
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([reassignment_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_return([reassignment_json])
         end
 
@@ -78,61 +77,13 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:get_children).with('/ktl/reassign/command').and_return(scala_list(%w[0]))
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/0').and_return([reassignment_json])
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([reassignment_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_raise(ZkClient::Exception::ZkNoNodeException.new)
         end
 
         it 'prints a message about it being done' do
           progress.display(shell)
           expect(shell).to have_received(:say).with('no partitions remaining to reassign')
-        end
-
-        context 'when there are queued reassignments' do
-          let :queued_json do
-            {
-              'partitions' => [
-                {'topic' => 'topic2', 'partition' => 0, 'replicas' => [0]},
-              ]
-            }.to_json
-          end
-
-          let :more_queued_json do
-            {
-              'partitions' => [
-                {'topic' => 'topic3', 'partition' => 0, 'replicas' => [0]},
-              ]
-            }.to_json
-          end
-
-          before do
-            allow(zk_client).to receive(:get_children).with('/ktl/reassign/command').and_return(scala_list(%w[0 1 2]))
-            allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/0').and_return([reassignment_json])
-            allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/1').and_return([queued_json])
-            allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/2').and_return([more_queued_json])
-          end
-
-          before do
-            progress.display(shell)
-          end
-
-          it 'prints a messages about queued reassignments' do
-            expect(shell).to have_received(:say).with('there are 2 queued reassignments')
-          end
-
-          context 'with :verbose => true' do
-            let :options do
-              {verbose: true}
-            end
-
-            it 'prints a table with the remaining reassignments' do
-              expect(shell).to have_received(:print_table).with([
-                %w[topic assignments],
-                ['topic2', '0 => [0]'],
-                ['topic3', '0 => [0]'],
-              ], anything)
-            end
-          end
         end
       end
 
@@ -155,9 +106,8 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:get_children).with('/ktl/reassign/command').and_return(scala_list(%w[0]))
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([original_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_return([reassignment_json])
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command/0').and_return([original_json])
         end
 
         before do

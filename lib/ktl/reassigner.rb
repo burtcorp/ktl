@@ -5,7 +5,7 @@ module Ktl
     def initialize(type, zk_client, options={})
       @type = type
       @zk_client = zk_client
-      @json_max_size = options[:json_max_size] || JSON_MAX_SIZE
+      @limit = options[:limit]
     end
 
     def reassignment_in_progress?
@@ -33,29 +33,25 @@ module Ktl
     end
 
     def execute(reassignment)
-      json = reassignment_json(reassignment)
-      reassignments = split(reassignment, json.bytesize)
+      reassignments = split(reassignment, @limit)
       actual_reassignment = reassignments.shift
       json = reassignment_json(actual_reassignment)
       @zk_client.reassign_partitions(json)
       manage_overflow(reassignments)
-      manage_progress_state(reassignments.unshift(actual_reassignment))
+      manage_progress_state(actual_reassignment)
     end
 
     private
 
-    JSON_MAX_SIZE = 1000**2
+    JSON_MAX_SIZE = 1024**2
 
-    def manage_progress_state(reassignments)
+    def manage_progress_state(reassignment)
       delete_previous_state
-      reassignments.each_with_index do |reassignment, index|
-        json = reassignment_json(reassignment)
-        @zk_client.create_znode(state_path(index), json)
-      end
+      json = reassignment_json(reassignment)
+      @zk_client.create_znode(state_path, json)
     end
 
     def delete_previous_state
-      state_path = %(/ktl/reassign/#{@type})
       if @zk_client.exists?(state_path)
         @zk_client.delete_znode(state_path, recursive: true)
       end
@@ -67,13 +63,19 @@ module Ktl
       end
     end
 
-    def state_path(index)
-      %(/ktl/reassign/#{@type}/#{index})
+    def state_path
+      @state_path ||= %(/ktl/reassign/#{@type})
     end
 
     def manage_overflow(reassignments)
       delete_previous_overflow
-      write_overflow(reassignments)
+      empty_map = Scala::Collection::Map.empty
+      overflow = reassignments.reduce(empty_map) do |acc, data|
+        acc.send('++', data)
+      end
+      if overflow.size > 0
+        write_overflow(split(overflow))
+      end
     end
 
     def overflow_base_path
@@ -99,10 +101,25 @@ module Ktl
       Kafka::Utils::ZkUtils.parse_partition_reassignment_data(json)
     end
 
-    def split(reassignment, bytesize)
-      groups = [bytesize.fdiv(@json_max_size).round, 1].max
-      group_size = reassignment.size.fdiv(groups).round
-      ScalaEnumerable.new(reassignment.grouped(group_size)).map(&:seq)
+    def maybe_split_by_limit(reassignment, limit=nil)
+      if limit
+        splitted = ScalaEnumerable.new(reassignment.grouped(limit)).map(&:seq)
+      else
+        splitted = [reassignment]
+      end
+    end
+
+    def split(reassignment, limit=nil)
+      splitted = maybe_split_by_limit(reassignment, limit)
+      bytesize = reassignment_json(splitted.first).bytesize
+      while bytesize > JSON_MAX_SIZE do
+        splitted = splitted.flat_map do |s|
+          group_size = s.size.fdiv(2).round
+          ScalaEnumerable.new(s.grouped(group_size)).map(&:seq)
+        end
+        bytesize = reassignment_json(splitted.first).bytesize
+      end
+      splitted
     end
   end
 end
