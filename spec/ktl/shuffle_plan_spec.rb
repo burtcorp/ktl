@@ -146,6 +146,18 @@ module Ktl
         end
       end
     end
+
+    context 'with explicit replication factor' do
+      let :options do
+        super.merge(replication_factor: 1)
+      end
+
+      it 'respects it' do
+        plan.generate.values.foreach do |value|
+          expect(value.size).to eq(1)
+        end
+      end
+    end
   end
 
   describe ShufflePlan do

@@ -19,7 +19,7 @@ module Ktl
       reassignment_plan = Scala::Collection::Map.empty
       topics_partitions.each do |tp|
         topic, partitions = tp.elements
-        nr_replicas = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, 0)).size
+        nr_replicas = @options[:replication_factor] || replica_assignments.apply(Kafka::TopicAndPartition.new(topic, 0)).size
         assignment = assign_replicas_to_brokers(topic, brokers, partitions.size, nr_replicas)
         assignment.each do |pr|
           partition, replicas = pr.elements

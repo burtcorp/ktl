@@ -38,11 +38,17 @@ module Ktl
     option :brokers, type: :array, desc: 'broker ids'
     option :blacklist, type: :array, desc: 'blacklisted broker ids'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing based shuffle'
+    option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'replication factor to use'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = options.rendezvous ? RendezvousShufflePlan : ShufflePlan
-        plan = plan_factory.new(zk_client, filter: Regexp.new(regexp), brokers: options.brokers, blacklist: options.blacklist)
+        plan = plan_factory.new(zk_client, {
+          filter: Regexp.new(regexp),
+          brokers: options.brokers,
+          blacklist: options.blacklist,
+          replication_factor: options.replication_factor,
+        })
         reassigner = Reassigner.new(:shuffle, zk_client, limit: options.limit)
         task = ReassignmentTask.new(reassigner, plan, shell)
         task.execute

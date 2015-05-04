@@ -177,6 +177,17 @@ describe 'bin/ktl broker' do
         expect(partitions).to_not be_empty
       end
     end
+
+    context 'when given an explicit replication factor' do
+      it 'respects it' do
+        silence { run(%w[broker shuffle -r 1], zk_args) }
+        partitions.each do |partition|
+          replicas = partition['replicas']
+          expect(replicas.size).to eq(1)
+        end
+        expect(partitions).to_not be_empty
+      end
+    end
   end
 
   describe 'decommission' do
