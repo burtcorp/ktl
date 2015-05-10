@@ -7,7 +7,7 @@ module Log4j
   include_package 'org.apache.log4j'
 
   BasicConfigurator.configure
-  Logger.root_logger.set_level(Level::ERROR)
+  org.apache.log4j.Logger.root_logger.set_level(Level::ERROR)
 end
 
 module ZkClient

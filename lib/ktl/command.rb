@@ -22,5 +22,11 @@ module Ktl
     ensure
       kafka_client.close if kafka_client
     end
+
+    def logger
+      @logger ||= Logger.new($stdout).tap do |log|
+        log.formatter = ShellFormater.new(shell)
+      end
+    end
   end
 end

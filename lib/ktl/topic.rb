@@ -76,7 +76,9 @@ module Ktl
     def reaper(regexp='.*')
       with_kafka_client do |kafka_client|
         with_zk_client do |zk_client|
-          reaper = TopicReaper.new(kafka_client, zk_client, Regexp.new(regexp), options)
+          reaper_options = options.merge(logger: logger)
+          regexp = Regexp.new(regexp)
+          reaper = TopicReaper.new(kafka_client, zk_client, regexp, reaper_options)
           reaper.execute
         end
       end
