@@ -69,6 +69,10 @@ module Kafka
       partitions = ZkUtils.get_partitions_for_topics(zk, topics)
       partitions.get(topic).get
     end
+
+    def self.delete_topic(zk, topic)
+      ZkUtils.create_persistent_path(zk, ZkUtils.get_delete_topic_path(topic), '')
+    end
   end
 
   module Admin

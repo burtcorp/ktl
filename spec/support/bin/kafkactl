@@ -1,0 +1,215 @@
+#!/bin/bash
+
+ZOOKEEPER_PORT=${ZOOKEEPER_PORT:-2281}
+KAFKA_BASE_PORT=${KAFKA_BASE_PORT:-9192}
+KAFKA_BROKER_COUNT=${KAFKA_BROKER_COUNT:-3}
+
+ROOT_DIR=$(python -c 'import os,sys; print os.path.realpath("$0/..")')
+BASE_DIR=$ROOT_DIR/tmp
+CONFIG_PROTO_DIR=$ROOT_DIR/spec/support/config
+
+function log() {
+  echo $1 1>&2
+}
+
+function check_port() {
+  nc -z localhost $1 > /dev/null && return 0
+}
+
+function await_port() {
+  for i in {1..10}; do
+    check_port $1 && return 0
+    sleep 1
+  done
+  echo "Failed to connect to port $1"
+  return 1
+}
+
+function broker_ports() {
+  for ((port=KAFKA_BASE_PORT; port < KAFKA_BASE_PORT + KAFKA_BROKER_COUNT; port++)); do
+    echo $port
+  done
+}
+
+function setup_zookeeper() {
+  mkdir -p $BASE_DIR/zookeeper/data
+  cp $CONFIG_PROTO_DIR/zookeeper.properties $BASE_DIR/zookeeper/zookeeper.properties
+  perl -p -i -e "s|\\%PORT\\%|$ZOOKEEPER_PORT|" $BASE_DIR/zookeeper/zookeeper.properties
+  perl -p -i -e "s|\\%DATA_DIR\\%|$BASE_DIR/zookeeper/data|" $BASE_DIR/zookeeper/zookeeper.properties
+}
+
+function setup_kafka() {
+  for port in $(broker_ports); do
+    broker_config_path=$BASE_DIR/kafka-$port/kafka.properties
+    broker_log_dir=$BASE_DIR/kafka-$port/logs
+    mkdir -p $broker_log_dir
+    cp $CONFIG_PROTO_DIR/kafka.properties $broker_config_path
+    perl -p -i -e "s|\\%BROKER_ID\\%|$port|" $broker_config_path
+    perl -p -i -e "s|\\%PORT\\%|$port|" $broker_config_path
+    perl -p -i -e "s|\\%DATA_DIR\\%|$broker_log_dir|" $broker_config_path
+    perl -p -i -e "s|\\%ZK\\%|localhost:$ZOOKEEPER_PORT|" $broker_config_path
+  done
+}
+
+function start_kafka() {
+  setup_kafka
+  slf4j_dir=$(find $GEM_HOME -name 'slf4j-jars*' -type d | sort | tail -n 1)
+  classpath=$(find $slf4j_dir -name 'slf4j-api-*.jar' | paste -sd: -)
+  classpath=$classpath:$(find $slf4j_dir -name 'slf4j-simple-*.jar' | paste -sd: -)
+  for gem in scala-library-jars zookeeper-jars metrics-core-jars snappy-jars lz4-jars kafka-clients-jars kafka-jars; do
+    gem_dir=$(find $GEM_HOME -name $gem'*' -type d | sort | tail -n 1)
+    classpath=$classpath:$(find $gem_dir -name '*.jar' | paste -sd: -)
+  done
+  for port in $(broker_ports); do
+    if check_port $port; then
+      log "Kafka already running on port $port"
+    else
+      log "Starting Kafka on port $port"
+      java -Xmx512M \
+           -Dlog4j.configuration=file:$CONFIG_PROTO_DIR/log4j.properties \
+           -cp "$classpath" \
+           kafka.Kafka \
+           $BASE_DIR/kafka-$port/kafka.properties \
+           < /dev/null >> $BASE_DIR/kafka-$port/kafka.log 2>&1 & \
+           echo $! > $BASE_DIR/kafka-$port/kafka.pid
+      await_port $port || return 1
+    fi
+  done
+}
+
+function start_zookeeper() {
+  if check_port $ZOOKEEPER_PORT; then
+    log 'ZooKeeper already running'
+  else
+    zookeeper_classpath=$(test -d "$ZOOKEEPER_HOME" && find $ZOOKEEPER_HOME -name '*.jar' | paste -sd: -)
+    if [[ -z $zookeeper_classpath ]]; then
+      log 'ZOOKEEPER_HOME not set or did not contain any JARs'
+      return 1
+    fi
+    setup_zookeeper
+    zookeeper_classpath=$(find $ZOOKEEPER_HOME -name '*.jar' | paste -sd: -)
+    log "Starting ZooKeeper on port $ZOOKEEPER_PORT"
+    java -Xmx512M \
+         -cp "$zookeeper_classpath" \
+         -Dlog4j.configuration=file:$CONFIG_PROTO_DIR/log4j.properties \
+         org.apache.zookeeper.server.quorum.QuorumPeerMain \
+         $BASE_DIR/zookeeper/zookeeper.properties \
+         < /dev/null >> $BASE_DIR/zookeeper/zookeeper.log 2>&1 & \
+         echo $! > $BASE_DIR/zookeeper/zookeeper.pid
+    await_port $ZOOKEEPER_PORT || return 1
+  fi
+}
+
+function start() {
+  start_kafka || return 1
+}
+
+function is_alive() {
+  ps $1 > /dev/null 2>&1
+}
+
+function kill_process() {
+  local pid=$1
+  local signal=${2:-TERM}
+  if is_alive $pid > /dev/null 2>&1; then
+    kill -s $signal $pid > /dev/null 2>&1
+    attempts=1
+    if is_alive $pid; then
+      sleep 1
+      while is_alive $pid; do
+        log "Process did not die"
+        if [[ $attempts > 5 && $signal != "KILL" ]]; then
+          log "Escalating to SIGKILL"
+          signal=KILL
+        fi
+        kill -s $signal $pid > /dev/null 2>&1
+        ((attempts++))
+      done
+    fi
+  fi
+}
+
+function pid_from_port() {
+  lsof -i :$1 | tail -n 1 | awk '{print $2}'
+}
+
+function stop_kafka() {
+  for port in $(broker_ports); do
+    while true; do
+      pid=$(pid_from_port $port)
+      if [[ -n $pid ]]; then
+        echo "Stopping Kafka on port $port (PID $pid)"
+        kill_process $pid
+      else
+        break
+      fi
+      rm -f $BASE_DIR/kafka-$port/kafka.pid
+    done
+  done
+  return 0
+}
+
+function stop_zookeeper() {
+  while true; do
+    pid=$(pid_from_port $ZOOKEEPER_PORT)
+    if [[ -n $pid ]]; then
+      echo "Stopping ZooKeeper (PID $pid)"
+      kill_process $pid
+    else
+      break
+    fi
+    rm -f $BASE_DIR/zookeeper/zookeeper.pid
+  done
+  return 0
+}
+
+function stop() {
+  stop_kafka || return 1
+}
+
+function clear() {
+  rm -rf $BASE_DIR/kafka-* $BASE_DIR/zookeeper
+}
+
+function status() {
+  errors=0
+  pid=$(pid_from_port $ZOOKEEPER_PORT)
+  if [[ -n $pid ]]; then
+    log "ZooKeeper running on port $ZOOKEEPER_PORT"
+  else
+    log "ZooKeeper not running"
+    ((errors++))
+  fi
+  for port in $(broker_ports); do
+    pid=$(pid_from_port $port)
+    if [[ -n $pid ]]; then
+      log "Kafka running on port $port"
+    else
+      log "Kafka not running on port $port"
+      ((errors++))
+    fi
+  done
+  return $errors
+}
+
+case "$1" in
+  start)
+    start || exit 1
+    ;;
+  stop)
+    stop || exit 1
+    ;;
+  restart)
+    stop && start || exit 1
+    ;;
+  status)
+    status || exit 1
+    ;;
+  clear)
+    clear || exit 1
+    ;;
+  *)
+    echo "Usage: $NAME {start|stop|status|restart|clear}" >&2
+    exit 3
+    ;;
+esac

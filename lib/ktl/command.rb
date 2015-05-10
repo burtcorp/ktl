@@ -3,13 +3,14 @@
 module Ktl
   class Command < Thor
 
-    protected
+    private
 
     def with_zk_client
       zk_client = ZookeeperClient.new(options.zookeeper).setup
       yield zk_client
     rescue => e
       say 'Error: %s (%s)' % [e.message, e.class.name], :red
+      say e.backtrace.join($/)
     ensure
       zk_client.close if zk_client
     end

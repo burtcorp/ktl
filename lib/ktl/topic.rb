@@ -64,7 +64,20 @@ module Ktl
         topics = topics.filter { |t| !!t.match(regexp) }
         say 'about to delete %d topics' % topics.size
         topics.foreach do |topic|
-          Kafka::Admin::AdminUtils.delete_topic(zk_client.raw_client, topic)
+          Kafka::Utils.delete_topic(zk_client.raw_client, topic)
+        end
+      end
+    end
+
+    desc 'reaper [REGEXP]', 'delete empty topics (optionally matching regexp)'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    option :parallel, aliases: %w[-p], desc: 'number of topics to delete in parallel', type: :numeric, default: 10
+    option :delay, aliases: %w[-d], desc: 'delay between deletes', type: :numeric
+    def reaper(regexp='.*')
+      with_kafka_client do |kafka_client|
+        with_zk_client do |zk_client|
+          reaper = TopicReaper.new(kafka_client, zk_client, Regexp.new(regexp), options)
+          reaper.execute
         end
       end
     end
