@@ -1,3 +1,11 @@
+GIT
+  remote: git://github.com/mthssdrbrg/heller.git
+  revision: 7e3536909f4256d374e0c3a45ebb1ba60ea89322
+  branch: kafka-0.8.2.0
+  specs:
+    heller (0.1.0-java)
+      kafka-jars
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -46,7 +54,7 @@ PLATFORMS
   java
 
 DEPENDENCIES
-  kafka-jars (= 0.8.2.1.pre0)
+  heller!
   rspec
   simplecov
   thor
