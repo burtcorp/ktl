@@ -5,6 +5,7 @@ require 'kafka-jars'
 
 module Log4j
   include_package 'org.apache.log4j'
+  java_import 'org.apache.log4j.Logger'
 
   BasicConfigurator.configure
   org.apache.log4j.Logger.root_logger.set_level(Level::ERROR)
