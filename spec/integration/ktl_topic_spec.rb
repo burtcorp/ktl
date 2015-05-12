@@ -124,13 +124,17 @@ describe 'bin/ktl topic' do
   end
 
   describe 'reaper' do
-    let :kafkactl do
-      Support::KafkaCtl.new(cluster_size: 1, zookeeper_port: 2185)
+    let :kafka_broker do
+      Kafka::Test.create_kafka_server({
+        'broker.id' => 1,
+        'port' => 9192,
+        'zookeeper.connect' => 'localhost:2185/ktl-test',
+      })
     end
 
     before do
       clear_zk_chroot
-      kafkactl.start
+      kafka_broker.start
       create_topic(%w[topic1 --partitions 1])
       create_topic(%w[topic2 --partitions 2])
       create_topic(%w[topic-3 --partitions 3])
@@ -138,7 +142,7 @@ describe 'bin/ktl topic' do
     end
 
     after do
-      kafkactl.stop
+      kafka_broker.shutdown
     end
 
     it 'creates a delete marker for each empty topic' do
