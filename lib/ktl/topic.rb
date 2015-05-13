@@ -38,7 +38,13 @@ module Ktl
         names.each do |name|
           opts = options.merge(create: nil, topic: name)
           topic_options = Kafka::Admin.to_topic_options(opts)
-          Kafka::Admin::TopicCommand.create_topic(zk_client.raw_client, topic_options)
+          silence_scala do
+            Kafka::Admin::TopicCommand.create_topic(zk_client.raw_client, topic_options)
+          end
+          message = %(created topic "#{name}" with #{options.partitions} partition(s))
+          message << %(, and replication factor #{options.replication_factor})
+          message << %(, with replica assignment: #{options.replica_assignment}) if options.replica_assignment
+          logger.info(message)
         end
       end
     end
@@ -51,7 +57,11 @@ module Ktl
         names.each do |name|
           opts = options.merge(alter: nil, topic: name)
           topic_options = Kafka::Admin.to_topic_options(opts)
-          Kafka::Admin::TopicCommand.alter_topic(zk_client.raw_client, topic_options)
+          logger.warn %(if "#{name}" has a key, the partition logic or ordering of the messages will be affected)
+          silence_scala do
+            Kafka::Admin::TopicCommand.alter_topic(zk_client.raw_client, topic_options)
+          end
+          logger.info %(increased partitions to #{options.partitions} for "#{name}")
         end
       end
     end
@@ -62,9 +72,10 @@ module Ktl
       with_zk_client do |zk_client|
         topics = zk_client.all_topics
         topics = topics.filter { |t| !!t.match(regexp) }
-        say 'about to delete %d topics' % topics.size
+        logger.info %(about to mark #{topics.size} topics for deletion)
         topics.foreach do |topic|
           Kafka::Utils.delete_topic(zk_client.raw_client, topic)
+          logger.debug %(successfully marked "#{topic}" for deletion)
         end
       end
     end

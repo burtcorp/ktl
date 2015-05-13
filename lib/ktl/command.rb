@@ -3,6 +3,8 @@
 module Ktl
   class Command < Thor
 
+    java_import 'java.io.ByteArrayOutputStream'
+
     private
 
     def with_zk_client
@@ -27,6 +29,11 @@ module Ktl
       @logger ||= Logger.new($stdout).tap do |log|
         log.formatter = ShellFormater.new(shell)
       end
+    end
+
+    def silence_scala(&block)
+      baos = ByteArrayOutputStream.new
+      Scala::Console.with_out(baos) { block.call }
     end
   end
 end
