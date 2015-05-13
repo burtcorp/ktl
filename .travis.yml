@@ -1,7 +1,11 @@
 language: ruby
+sudo: false
+cache: bundler
 bundler_args: --without development
 rvm:
 - jruby
+env:
+  - JRUBY_OPTS="$JRUBY_OPTS -Xcli.debug=true --debug"
 before_install:
   - password=`openssl rsautl -decrypt -inkey ~/.ssh/id_rsa -in config/travis/secret.rsaenc`
   - openssl aes-256-cbc -k "$password" -in config/travis/burtbot-travis-id_rsa.aes256enc -d -a -out id_private
