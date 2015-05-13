@@ -275,8 +275,8 @@ describe 'bin/ktl broker' do
 
     context 'when called with an invalid command' do
       it 'prints an error message' do
-        console_output = capture(:stderr) { run(%w[broker progress], %w[hello] + zk_args) }
-        expect(console_output).to match('Error: "hello" must be one of migrate, shuffle or decommission')
+        console_output = capture { run(%w[broker progress], %w[hello] + zk_args) }
+        expect(console_output).to match(/"hello" must be one of migrate, shuffle or decommission/)
       end
     end
   end

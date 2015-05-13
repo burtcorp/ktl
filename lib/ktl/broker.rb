@@ -12,8 +12,7 @@ module Ktl
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
         reassigner = Reassigner.new(:migrate, zk_client, limit: options.limit)
-        task = ReassignmentTask.new(reassigner, plan, shell)
-        task.execute
+        execute_reassignment(reassigner, plan)
       end
     end
 
@@ -25,10 +24,10 @@ module Ktl
         partitions = zk_client.all_partitions
         partitions = partitions.filter { |tp| !!tp.topic.match(regexp) }.to_set
         if partitions.size > 0
-          say 'performing preferred replica leader election on %d partitions' % partitions.size
+          logger.info 'performing preferred replica leader election on %d partitions' % partitions.size
           Kafka::Admin.preferred_replica(zk_client.raw_client, partitions)
         else
-          say 'no topics matched %s' % regexp.inspect
+          logger.info 'no topics matched %s' % regexp.inspect
         end
       end
     end
@@ -50,8 +49,7 @@ module Ktl
           replication_factor: options.replication_factor,
         })
         reassigner = Reassigner.new(:shuffle, zk_client, limit: options.limit)
-        task = ReassignmentTask.new(reassigner, plan, shell)
-        task.execute
+        execute_reassignment(reassigner, plan)
       end
     end
 
@@ -62,8 +60,7 @@ module Ktl
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         reassigner = Reassigner.new(:decommission, zk_client, limit: options.limit)
-        task = ReassignmentTask.new(reassigner, plan, shell)
-        task.execute
+        execute_reassignment(reassigner, plan)
       end
     end
 
@@ -73,13 +70,18 @@ module Ktl
     def progress(command)
       if %w[migrate shuffle decommission].include?(command)
         with_zk_client do |zk_client|
-          progress = ReassignmentProgress.new(zk_client, command, options)
-          progress.display(shell);
+          progress = ReassignmentProgress.new(zk_client, command, options.merge(logger: logger))
+          progress.display(shell)
         end
       else
-        raise Thor::Error,
-          shell.set_color('Error: ', :red) << %(#{command.inspect} must be one of migrate, shuffle or decommission)
+        logger.error %(#{command.inspect} must be one of migrate, shuffle or decommission)
       end
+    end
+
+    private
+
+    def execute_reassignment(reassigner, plan)
+      ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute
     end
   end
 end
