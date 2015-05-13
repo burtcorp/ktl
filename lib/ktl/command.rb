@@ -3,14 +3,16 @@
 module Ktl
   class Command < Thor
 
+    java_import 'java.io.ByteArrayOutputStream'
+
     private
 
     def with_zk_client
       zk_client = ZookeeperClient.new(options.zookeeper).setup
       yield zk_client
     rescue => e
-      say 'Error: %s (%s)' % [e.message, e.class.name], :red
-      say e.backtrace.join($/)
+      logger.error '%s (%s)' % [e.message, e.class.name]
+      logger.debug e.backtrace.join($/)
     ensure
       zk_client.close if zk_client
     end
@@ -27,6 +29,11 @@ module Ktl
       @logger ||= Logger.new($stdout).tap do |log|
         log.formatter = ShellFormater.new(shell)
       end
+    end
+
+    def silence_scala(&block)
+      baos = ByteArrayOutputStream.new
+      Scala::Console.with_out(baos) { block.call }
     end
   end
 end

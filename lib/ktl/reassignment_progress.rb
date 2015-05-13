@@ -6,6 +6,7 @@ module Ktl
       @zk_client = zk_client
       @command = command
       @utils = options[:utils] || Kafka::Utils::ZkUtils
+      @logger = options[:logger] || NullLogger.new
       @options = options
     end
 
@@ -15,12 +16,12 @@ module Ktl
       if in_progress && !in_progress.empty?
         original_size, remaining_size = original.size, in_progress.size
         done_percentage = (original_size - remaining_size).fdiv(original_size) * 100
-        shell.say 'remaining partitions to reassign: %d (%.2f%% done)' % [remaining_size, done_percentage]
+        @logger.info 'remaining partitions to reassign: %d (%.2f%% done)' % [remaining_size, done_percentage]
         if @options[:verbose]
-          shell.print_table(table_data(in_progress), indent: 2)
+          shell.print_table(table_data(in_progress), indent: 2 + 6)
         end
       else
-        shell.say 'no partitions remaining to reassign'
+        @logger.info 'no partitions remaining to reassign'
       end
     end
 

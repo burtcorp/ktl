@@ -2,28 +2,29 @@
 
 module Ktl
   class ReassignmentTask
-    def initialize(reassigner, plan, shell)
+    def initialize(reassigner, plan, shell, options={})
       @reassigner = reassigner
       @plan = plan
       @shell = shell
+      @logger = options[:logger] || NullLogger.new
     end
 
     def execute
       if @reassigner.reassignment_in_progress?
-        @shell.say 'Reassignment already in progress, exiting', :red
+        @logger.warn 'reassignment already in progress, exiting'
       else
         if use_overflow?
-          @shell.say 'Loading overflow data'
+          @logger.info 'loading overflow data'
           reassignment = @reassigner.load_overflow
         else
-          @shell.say 'Generating a new reassignment plan'
+          @logger.info 'generating a new reassignment plan'
           reassignment = @plan.generate
         end
         if reassignment.size > 0
-          @shell.say 'Reassigning %d partitions' % reassignment.size
+          @logger.info 'reassigning %d partitions' % reassignment.size
           @reassigner.execute(reassignment)
         else
-          @shell.say 'Empty reassignment, ignoring'
+          @logger.warn 'empty reassignment, ignoring'
         end
       end
     end
@@ -31,7 +32,10 @@ module Ktl
     private
 
     def use_overflow?
-      @reassigner.overflow? && @shell.yes?('Overflow from previous reassignment found, use? [y/n]: ')
+      if @reassigner.overflow?
+        @logger.info 'overflow from previous reassignment found, use? [y/n]'
+        @shell.yes? ' ' * 8 << '>'
+      end
     end
   end
 end

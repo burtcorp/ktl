@@ -20,6 +20,7 @@ module ZkClient
 end
 
 module Scala
+  java_import 'scala.Console'
   java_import 'scala.Tuple2'
 
   class Tuple2

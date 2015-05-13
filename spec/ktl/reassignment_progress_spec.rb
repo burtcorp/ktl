@@ -6,7 +6,7 @@ require 'spec_helper'
 module Ktl
   describe ReassignmentProgress do
     let :progress do
-      described_class.new(zk_client, command, options)
+      described_class.new(zk_client, command, options.merge(logger: logger))
     end
 
     let :zk_client do
@@ -25,8 +25,11 @@ module Ktl
       double(:shell)
     end
 
+    let :logger do
+      double(:logger, debug: nil, info: nil, warn: nil, error: nil)
+    end
+
     before do
-      allow(shell).to receive(:say)
       allow(shell).to receive(:print_table)
     end
 
@@ -50,7 +53,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (0.00% done)')
+          expect(logger).to have_received(:info).with('remaining partitions to reassign: 1 (0.00% done)')
         end
 
         context 'with :verbose => true' do
@@ -83,7 +86,7 @@ module Ktl
 
         it 'prints a message about it being done' do
           progress.display(shell)
-          expect(shell).to have_received(:say).with('no partitions remaining to reassign')
+          expect(logger).to have_received(:info).with('no partitions remaining to reassign')
         end
       end
 
@@ -115,7 +118,7 @@ module Ktl
         end
 
         it 'prints a message about remaining reassignments' do
-          expect(shell).to have_received(:say).with('remaining partitions to reassign: 1 (50.00% done)')
+          expect(logger).to have_received(:info).with('remaining partitions to reassign: 1 (50.00% done)')
         end
 
         context 'with :verbose => true' do
@@ -134,4 +137,3 @@ module Ktl
     end
   end
 end
-

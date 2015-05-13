@@ -18,7 +18,7 @@ module Ktl
       earliest = @kafka_client.earliest_offset(partitions_by_topic)
       latest = @kafka_client.latest_offset(partitions_by_topic)
       empty = filter_empty_topics(partitions_by_topic, earliest, latest)
-      @logger.info 'Deleting %d topics in total' % [empty.size]
+      @logger.info %(marking #{empty.size} topics for deletion)
       empty.each_slice(@parallel) do |topics|
         delete_topics(topics)
       end
@@ -36,12 +36,12 @@ module Ktl
     end
 
     def delete_topics(topics)
-      @logger.debug { 'Deleting %d topics (%s)' % [topics.size, topics.join(', ')] }
+      @logger.debug { 'marking %d topics (%s) for deletion' % [topics.size, topics.join(', ')] }
       topics.each do |topic|
         @utils.delete_topic(@zk_client.raw_client, topic)
       end
       if @delay > 0
-        @logger.debug { 'Waiting %ds' % [@delay] }
+        @logger.debug { 'waiting %ds before next batch' % [@delay] }
         @sleeper.sleep(@delay * 1000)
       end
     end
