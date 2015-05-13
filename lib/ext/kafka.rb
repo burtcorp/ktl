@@ -5,9 +5,10 @@ require 'kafka-jars'
 
 module Log4j
   include_package 'org.apache.log4j'
+  java_import 'org.apache.log4j.Logger'
 
   BasicConfigurator.configure
-  Logger.root_logger.set_level(Level::ERROR)
+  org.apache.log4j.Logger.root_logger.set_level(Level::ERROR)
 end
 
 module ZkClient
@@ -68,6 +69,10 @@ module Kafka
       topics = Scala::Collection::Immutable::List.from_array([topic].to_java)
       partitions = ZkUtils.get_partitions_for_topics(zk, topics)
       partitions.get(topic).get
+    end
+
+    def self.delete_topic(zk, topic)
+      ZkUtils.create_persistent_path(zk, ZkUtils.get_delete_topic_path(topic), '')
     end
   end
 

@@ -5,14 +5,17 @@ module CliHelpers
   java_import 'scala.Console'
 
   def capture(stream=:stdout, &block)
+    s = nil
     begin
       stderr, stdout, $stderr, $stdout = $stderr, $stdout, StringIO.new, StringIO.new
       result = (stream == :stdout) ? $stdout : $stderr
       result.puts(capture_scala(stream, &block))
-      result.string
+      s = result.string
     ensure
       $stderr, $stdout = stderr, stdout
     end
+    puts s if ENV['SILENCE_LOGGING'] == 'no' && !s.empty?
+    s
   end
   alias_method :silence, :capture
 
@@ -27,7 +30,9 @@ module CliHelpers
         block.call
       end
     end
-    result.to_string
+    s = result.to_string
+    puts s if ENV['SILENCE_LOGGING'] == 'no' && !s.empty?
+    s
   end
   alias_method :silence_scala, :capture_scala
 end

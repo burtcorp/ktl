@@ -61,6 +61,23 @@ shared_context 'integration setup' do
     end
   end
 
+  def wait_until_topics_exist(broker, topics)
+    topics_exist, attempts = false, 0
+    until topics_exist do
+      consumer = Heller::Consumer.new(broker)
+      metadata = consumer.metadata
+      if topics.all? { |topic| metadata.leader_for(topic, 0) rescue false }
+        topics_exist = true
+      elsif attempts > 10
+        fail('Topics not created within 10 attempts')
+      else
+        sleep(1)
+        attempts += 1
+      end
+      consumer.close
+    end
+  end
+
   before do
     zk_server.start
     setup_zk_chroot

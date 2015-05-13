@@ -122,4 +122,35 @@ describe 'bin/ktl topic' do
       expect(ktl_zk.exists?(delete_path)).to be true
     end
   end
+
+  describe 'reaper' do
+    let :kafka_broker do
+      Kafka::Test.create_kafka_server({
+        'broker.id' => 1,
+        'port' => 9192,
+        'zookeeper.connect' => 'localhost:2185/ktl-test',
+      })
+    end
+
+    before do
+      clear_zk_chroot
+      kafka_broker.start
+      create_topic(%w[topic1 --partitions 1])
+      create_topic(%w[topic2 --partitions 2])
+      create_topic(%w[topic-3 --partitions 3])
+      wait_until_topics_exist('localhost:9192', %w[topic1 topic2 topic-3])
+    end
+
+    after do
+      kafka_broker.shutdown
+    end
+
+    it 'creates a delete marker for each empty topic' do
+      silence { run(%w[topic reaper ^topic\d$ --delay 0], zk_args) }
+      %w[topic1 topic2].each do |topic|
+        delete_path = Kafka::Utils::ZkUtils.get_delete_topic_path(topic)
+        expect(ktl_zk.exists?(delete_path)).to be true
+      end
+    end
+  end
 end
