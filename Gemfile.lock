@@ -1,15 +1,10 @@
-GIT
-  remote: git://github.com/mthssdrbrg/heller.git
-  revision: 833dffcff61fd4d1f4cffd34044671711bcff934
-  specs:
-    heller (0.1.0-java)
-      kafka-jars
-
 GEM
   remote: https://rubygems.org/
   specs:
     diff-lcs (1.2.5)
     docile (1.1.5)
+    heller (0.2.0-java)
+      kafka-jars (~> 0.8.2)
     json (1.8.2-java)
     kafka-clients-jars (0.8.2.1-java)
       lz4-jars (~> 1.2)
@@ -53,7 +48,7 @@ PLATFORMS
   java
 
 DEPENDENCIES
-  heller!
+  heller
   rspec
   simplecov
   thor

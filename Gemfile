@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-gem 'heller', github: 'mthssdrbrg/heller'
+gem 'heller'
 gem 'thor'
 
 group :test do
