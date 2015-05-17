@@ -2,10 +2,11 @@
 
 module Ktl
   class Reassigner
-    def initialize(type, zk_client, options={})
-      @type = type
+    def initialize(zk_client, options={})
       @zk_client = zk_client
       @limit = options[:limit]
+      @overflow_path = '/ktl/overflow'
+      @state_path = '/ktl/reassign'
     end
 
     def reassignment_in_progress?
@@ -14,7 +15,7 @@ module Ktl
     end
 
     def overflow?
-      overflow_znodes = @zk_client.get_children(overflow_base_path)
+      overflow_znodes = @zk_client.get_children(@overflow_path)
       overflow_znodes.size > 0
     rescue ZkClient::Exception::ZkNoNodeException
       false
@@ -22,7 +23,7 @@ module Ktl
 
     def load_overflow
       overflow = Scala::Collection::Map.empty
-      overflow_nodes = @zk_client.get_children(overflow_base_path)
+      overflow_nodes = @zk_client.get_children(@overflow_path)
       overflow_nodes.foreach do |index|
         overflow_json = @zk_client.read_data(overflow_path(index)).first
         data = parse_reassignment_json(overflow_json)
@@ -48,23 +49,21 @@ module Ktl
     def manage_progress_state(reassignment)
       delete_previous_state
       json = reassignment_json(reassignment)
-      @zk_client.create_znode(state_path, json)
+      @zk_client.create_znode(@state_path, json)
     end
 
     def delete_previous_state
-      if @zk_client.exists?(state_path)
-        @zk_client.delete_znode(state_path, recursive: true)
+      if @zk_client.exists?(@state_path)
+        @zk_client.delete_znode(@state_path)
       end
     end
 
     def delete_previous_overflow
-      if @zk_client.exists?(overflow_base_path)
-        @zk_client.delete_znode(overflow_base_path, recursive: true)
+      overflow = @zk_client.get_children(@overflow_path)
+      overflow.foreach do |index|
+        @zk_client.delete_znode(overflow_path(index))
       end
-    end
-
-    def state_path
-      @state_path ||= %(/ktl/reassign/#{@type})
+    rescue ZkClient::Exception::ZkNoNodeException
     end
 
     def manage_overflow(reassignments)
@@ -78,12 +77,8 @@ module Ktl
       end
     end
 
-    def overflow_base_path
-      @overflow_base_path ||= %(/ktl/overflow/#{@type})
-    end
-
     def overflow_path(index)
-      %(#{overflow_base_path}/#{index})
+      [@overflow_path, index].join('/')
     end
 
     def write_overflow(reassignments)

@@ -24,7 +24,7 @@ describe 'bin/ktl broker' do
             {topic: 'topic1', partition: 0, replicas: [1]}
           ]
         }.to_json
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk, %(/ktl/overflow/#{command}/0), overflow_json)
+        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk, '/ktl/overflow/0', overflow_json)
       end
 
       before do
@@ -64,8 +64,7 @@ describe 'bin/ktl broker' do
       end
 
       it 'writes the reassignment json to a `reassign` state prefix' do
-        indices = ktl_zk.get_children(%(/ktl/reassign/#{command}))
-        partitions = fetch_json(%(/ktl/reassign/#{command}), 'partitions')
+        partitions = fetch_json('/ktl/reassign', 'partitions')
         expect(partitions).to contain_exactly(*reassigned_partitions)
       end
     end
@@ -232,7 +231,7 @@ describe 'bin/ktl broker' do
     end
 
     let :command_args do
-      %w[shuffle]
+      []
     end
 
     context 'when there is an active reassignment in progress' do
@@ -247,7 +246,7 @@ describe 'bin/ktl broker' do
 
       context 'with -v / --verbose flag' do
         let :command_args do
-          %w[shuffle -v]
+          %w[-v]
         end
 
         it 'prints the number of remaining reassignments' do
@@ -270,13 +269,6 @@ describe 'bin/ktl broker' do
     context 'when there is no active reassignment in progress' do
       it 'prints a message about it' do
         expect(console_output).to include('no partitions remaining to reassign')
-      end
-    end
-
-    context 'when called with an invalid command' do
-      it 'prints an error message' do
-        console_output = capture { run(%w[broker progress], %w[hello] + zk_args) }
-        expect(console_output).to match(/"hello" must be one of migrate, shuffle or decommission/)
       end
     end
   end

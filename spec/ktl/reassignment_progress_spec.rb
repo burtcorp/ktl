@@ -6,15 +6,11 @@ require 'spec_helper'
 module Ktl
   describe ReassignmentProgress do
     let :progress do
-      described_class.new(zk_client, command, options.merge(logger: logger))
+      described_class.new(zk_client, options.merge(logger: logger))
     end
 
     let :zk_client do
       double(:zk_client)
-    end
-
-    let :command do
-      'command'
     end
 
     let :options do
@@ -44,7 +40,7 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([reassignment_json])
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign').and_return([reassignment_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_return([reassignment_json])
         end
 
@@ -80,7 +76,7 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([reassignment_json])
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign').and_return([reassignment_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_raise(ZkClient::Exception::ZkNoNodeException.new)
         end
 
@@ -109,7 +105,7 @@ module Ktl
         end
 
         before do
-          allow(zk_client).to receive(:read_data).with('/ktl/reassign/command').and_return([original_json])
+          allow(zk_client).to receive(:read_data).with('/ktl/reassign').and_return([original_json])
           allow(zk_client).to receive(:read_data).with('/admin/reassign_partitions').and_return([reassignment_json])
         end
 

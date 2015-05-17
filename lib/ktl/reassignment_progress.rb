@@ -2,11 +2,11 @@
 
 module Ktl
   class ReassignmentProgress
-    def initialize(zk_client, command, options={})
+    def initialize(zk_client, options={})
       @zk_client = zk_client
-      @command = command
       @utils = options[:utils] || Kafka::Utils::ZkUtils
       @logger = options[:logger] || NullLogger.new
+      @state_path = '/ktl/reassign'
       @options = options
     end
 
@@ -27,10 +27,6 @@ module Ktl
 
     private
 
-    def state_path
-      @state_path ||= '/ktl/reassign/%s' % @command.to_s
-    end
-
     def table_data(reassignments)
       topics = reassignments.group_by { |r| r['topic'] }
       table = topics.map do |t, r|
@@ -49,7 +45,7 @@ module Ktl
     end
 
     def original_reassignment
-      read_json(state_path).fetch('partitions')
+      read_json(@state_path).fetch('partitions')
     rescue ZkClient::Exception::ZkNoNodeException
       {}
     end

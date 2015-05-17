@@ -11,7 +11,7 @@ module Ktl
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
-        reassigner = Reassigner.new(:migrate, zk_client, limit: options.limit)
+        reassigner = Reassigner.new(zk_client, limit: options.limit)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -48,7 +48,7 @@ module Ktl
           blacklist: options.blacklist,
           replication_factor: options.replication_factor,
         })
-        reassigner = Reassigner.new(:shuffle, zk_client, limit: options.limit)
+        reassigner = Reassigner.new(zk_client, limit: options.limit)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -59,22 +59,18 @@ module Ktl
     def decommission(broker_id)
       with_zk_client do |zk_client|
         plan = DecommissionPlan.new(zk_client, broker_id.to_i)
-        reassigner = Reassigner.new(:decommission, zk_client, limit: options.limit)
+        reassigner = Reassigner.new(zk_client, limit: options.limit)
         execute_reassignment(reassigner, plan)
       end
     end
 
-    desc 'progress COMMAND', 'show progress of a reassignment command'
+    desc 'progress', 'show progress of latest reassignment'
     option :verbose, aliases: %w[-v], desc: 'verbose output'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-    def progress(command)
-      if %w[migrate shuffle decommission].include?(command)
-        with_zk_client do |zk_client|
-          progress = ReassignmentProgress.new(zk_client, command, options.merge(logger: logger))
-          progress.display(shell)
-        end
-      else
-        logger.error %(#{command.inspect} must be one of migrate, shuffle or decommission)
+    def progress
+      with_zk_client do |zk_client|
+        progress = ReassignmentProgress.new(zk_client, options.merge(logger: logger))
+        progress.display(shell)
       end
     end
 
