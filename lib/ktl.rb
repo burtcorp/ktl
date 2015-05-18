@@ -34,7 +34,6 @@ module Ktl
 end
 
 require 'ktl/command'
-require 'ktl/broker'
 require 'ktl/cluster'
 require 'ktl/cluster_stats_task'
 require 'ktl/consumer'
