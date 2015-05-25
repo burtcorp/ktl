@@ -84,11 +84,13 @@ module Kafka
 
     def self.to_topic_options(hash)
       options = hash.flat_map do |key, value|
+        kafka_key = '--' + key.to_s.gsub('_', '-')
         if value.is_a?(Hash)
-          kafka_key = '--' + key.to_s.gsub('_', '-')
           value.map { |k, v| [kafka_key, [k, v].join('=')] }
+        elsif value.is_a?(Array)
+          value.map { |v| [kafka_key, v] }
         else
-          ['--' + key.to_s.gsub('_', '-'), value].compact
+          [kafka_key, value].compact
         end
       end
       TopicCommandOptions.new(options.flatten)

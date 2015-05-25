@@ -164,4 +164,61 @@ describe 'bin/ktl topic' do
       end
     end
   end
+
+  describe 'alter' do
+    let :kafka_broker do
+      Kafka::Test.create_kafka_server({
+        'broker.id' => 1,
+        'port' => 9192,
+        'zookeeper.connect' => 'localhost:2185/ktl-test',
+      })
+    end
+
+    before do
+      clear_zk_chroot
+      kafka_broker.start
+      3.times do |index|
+        index += 1
+        create_topic(%W[topic-#{index} --partitions #{index}])
+      end
+      create_topic(%W[other-topic --partitions 1])
+      wait_until_topics_exist('localhost:9192', %w[topic-1 topic-2 topic-3 other-topic])
+    end
+
+    after do
+      kafka_broker.shutdown
+    end
+
+    it 'updates configuration for topics matching specified regexp' do
+      silence { run(%w[topic alter topic-.+ --add flush.messages:1000], zk_args) }
+      %w[topic-1 topic-2 topic-3].each do |topic_name|
+        config = fetch_json(%(/config/topics/#{topic_name}), 'config')
+        expect(config).to include('flush.messages' => '1000')
+      end
+      other_config = fetch_json(%(/config/topics/other-topic), 'config')
+      expect(other_config).to be_empty
+    end
+
+    context 'with --remove' do
+      it 'removes specified configuration options from topics' do
+        silence { run(%w[topic alter topic-.+ --add flush.messages:1000 retention.bytes:1024], zk_args) }
+        silence { run(%w[topic alter topic-.+ --remove flush.messages], zk_args) }
+        %w[topic-1 topic-2 topic-3].each do |topic_name|
+          config = fetch_json(%(/config/topics/#{topic_name}), 'config')
+          expect(config).to eq('retention.bytes' => '1024')
+        end
+      end
+    end
+
+    context 'with --add and --remove' do
+      it 'updates specified configuration options for matching topics' do
+        silence { run(%w[topic alter topic-.+ --add flush.messages:1000 retention.bytes:1024], zk_args) }
+        silence { run(%w[topic alter topic-.+ --add cleanup.policy:compact --remove flush.messages], zk_args) }
+        %w[topic-1 topic-2 topic-3].each do |topic_name|
+          config = fetch_json(%(/config/topics/#{topic_name}), 'config')
+          expect(config).to eq('retention.bytes' => '1024', 'cleanup.policy' => 'compact')
+        end
+      end
+    end
+  end
 end

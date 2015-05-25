@@ -96,5 +96,30 @@ module Ktl
         end
       end
     end
+
+    desc 'alter REGEXP', 'alter topic configuration'
+    option :add, aliases: %w[-a], desc: 'key-value pairs of config options to add', type: :hash, default: {}
+    option :remove, aliases: %w[-r], desc: 'key-value pairs of config options to remove', type: :array, default: []
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    def alter(regexp)
+      with_zk_client do |zk_client|
+        opts = {zookeeper: options.zookeeper, topic: regexp}
+        unless options.add.empty?
+          opts[:config] = options.add.map { |k, v| [k, v].join('=') }
+        end
+        unless options.remove.empty?
+          opts[:delete_config] = options.remove.dup
+        end
+        if opts[:config] || opts[:delete_config]
+          topic_options = Kafka::Admin.to_topic_options(opts)
+          silence_scala do
+            Kafka::Admin::TopicCommand.alter_topic(zk_client.raw_client, topic_options)
+          end
+          logger.info %(updated configuration for topics matching "#{regexp}")
+        else
+          raise ArgumentError, 'missing --add or --remove option'
+        end
+      end
+    end
   end
 end
