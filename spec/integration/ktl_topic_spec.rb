@@ -95,6 +95,17 @@ describe 'bin/ktl topic' do
         expect(replicas).to eq(scala_int_list([1, 0]))
       end
     end
+
+    context 'with --config' do
+      let :args do
+        %w[topic1 --partitions 2 --replication-factor 2 --config cleanup.policy:compact retention.bytes:1024]
+      end
+
+      it 'uses the given configuration for the created topic(s)' do
+        config = fetch_json(%(/config/topics/topic1), 'config')
+        expect(config).to eq('retention.bytes' => '1024', 'cleanup.policy' => 'compact')
+      end
+    end
   end
 
   describe 'add-partitions' do

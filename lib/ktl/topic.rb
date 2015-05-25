@@ -32,6 +32,7 @@ module Ktl
     option :partitions, aliases: %w[-p], default: '1', desc: 'partitions for new topic(s)'
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'replication factor for new topic(s)'
     option :replica_assignment, aliases: %w[-a], desc: 'manual replica assignment'
+    option :config, aliases: %w[-c], desc: 'key-value pairs of configuration options', type: :hash, default: {}
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
     def create(*names)
       with_zk_client do |zk_client|
@@ -44,6 +45,7 @@ module Ktl
           message = %(created topic "#{name}" with #{options.partitions} partition(s))
           message << %(, and replication factor #{options.replication_factor})
           message << %(, with replica assignment: #{options.replica_assignment}) if options.replica_assignment
+          message << %(, with config: #{options.config}) unless options.config.empty?
           logger.info(message)
         end
       end

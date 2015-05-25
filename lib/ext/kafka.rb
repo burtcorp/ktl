@@ -84,9 +84,14 @@ module Kafka
 
     def self.to_topic_options(hash)
       options = hash.flat_map do |key, value|
-        ['--' + key.to_s.gsub('_', '-'), value].compact
+        if value.is_a?(Hash)
+          kafka_key = '--' + key.to_s.gsub('_', '-')
+          value.map { |k, v| [kafka_key, [k, v].join('=')] }
+        else
+          ['--' + key.to_s.gsub('_', '-'), value].compact
+        end
       end
-      TopicCommandOptions.new(options)
+      TopicCommandOptions.new(options.flatten)
     end
 
     def self.preferred_replica(zk_client, topics_partitions)
