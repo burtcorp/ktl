@@ -34,8 +34,8 @@ module Ktl
 end
 
 require 'ktl/command'
-require 'ktl/broker'
 require 'ktl/cluster'
+require 'ktl/cluster_stats_task'
 require 'ktl/consumer'
 require 'ktl/decommission_plan'
 require 'ktl/kafka_client'
