@@ -204,9 +204,9 @@ describe 'bin/ktl cluster' do
     end
   end
 
-  describe 'decommission' do
+  describe 'decommission-broker' do
     let :command do
-      'decommission'
+      'decommission-broker'
     end
 
     let :command_args do
@@ -232,7 +232,7 @@ describe 'bin/ktl cluster' do
     end
 
     it 'kick-starts a partition reassignment command' do
-      silence { run(%w[cluster decommission], command_args + zk_args) }
+      silence { run(%w[cluster decommission-broker], command_args + zk_args) }
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 

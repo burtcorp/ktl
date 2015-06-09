@@ -62,11 +62,11 @@ module Ktl
       end
     end
 
-    desc 'decommission BROKER_ID', 'decommission a broker'
+    desc 'decommission-broker BROKER_ID', 'decommission a broker'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-    def decommission(broker_id)
+    def decommission_broker(broker_id)
       with_zk_client do |zk_client|
         if options.rendezvous?
           plan = RendezvousShufflePlan.new(zk_client, blacklist: [broker_id.to_i])
