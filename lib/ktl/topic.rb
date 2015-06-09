@@ -2,8 +2,8 @@
 
 module Ktl
   class Topic < Command
-    desc 'list', 'list current topics'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'list', 'List current topics'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def list
       with_zk_client do |zk_client|
         topic_options = Kafka::Admin.to_topic_options(options.merge(list: nil))
@@ -11,11 +11,11 @@ module Ktl
       end
     end
 
-    desc 'describe', 'describe (optionally filtered) topics'
-    option :unavailable, aliases: '-u', desc: 'describe unavailable partitions for topic(s)'
-    option :with_overrides, aliases: '-w', desc: 'describe topics with config. overrides'
-    option :under_replicated, aliases: '-r', desc: 'describe under-replicated partitions for topic(s)'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'describe', 'Describe (optionally filtered) topics'
+    option :unavailable, aliases: '-u', desc: 'Describe unavailable partitions for topic(s)'
+    option :with_overrides, aliases: '-w', desc: 'Describe topics with config. overrides'
+    option :under_replicated, aliases: '-r', desc: 'Describe under-replicated partitions for topic(s)'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def describe(regexp=nil)
       with_zk_client do |zk_client|
         opts = {describe: nil}
@@ -28,12 +28,12 @@ module Ktl
       end
     end
 
-    desc 'create NAMES..', 'create one or more new topics'
-    option :partitions, aliases: %w[-p], default: '1', desc: 'partitions for new topic(s)'
-    option :replication_factor, aliases: %w[-r], default: '1', desc: 'replication factor for new topic(s)'
-    option :replica_assignment, aliases: %w[-a], desc: 'manual replica assignment'
-    option :config, aliases: %w[-c], desc: 'key-value pairs of configuration options', type: :hash, default: {}
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'create NAMES..', 'Create one or more new topics'
+    option :partitions, aliases: %w[-p], default: '1', desc: 'Partitions for new topic(s)'
+    option :replication_factor, aliases: %w[-r], default: '1', desc: 'Replication factor for new topic(s)'
+    option :replica_assignment, aliases: %w[-a], desc: 'Manual replica assignment'
+    option :config, aliases: %w[-c], desc: 'Key-value pairs of configuration options', type: :hash, default: {}
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def create(*names)
       with_zk_client do |zk_client|
         names.each do |name|
@@ -51,9 +51,9 @@ module Ktl
       end
     end
 
-    desc 'add-partitions NAMES..', 'add partitions to one or more existing topics'
-    option :partitions, aliases: %w[-p], required: true, desc: 'new number of partitions'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'add-partitions NAMES..', 'Add partitions to one or more existing topics'
+    option :partitions, aliases: %w[-p], required: true, desc: 'New number of partitions'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def add_partitions(*names)
       with_zk_client do |zk_client|
         names.each do |name|
@@ -68,8 +68,8 @@ module Ktl
       end
     end
 
-    desc 'delete REGEXP', 'delete topics matching given regexp'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'delete REGEXP', 'Delete topics matching given regexp'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def delete(regexp)
       with_zk_client do |zk_client|
         topics = zk_client.all_topics
@@ -82,10 +82,10 @@ module Ktl
       end
     end
 
-    desc 'reaper [REGEXP]', 'delete empty topics (optionally matching regexp)'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-    option :parallel, aliases: %w[-p], desc: 'number of topics to delete in parallel', type: :numeric, default: 10
-    option :delay, aliases: %w[-d], desc: 'delay between deletes', type: :numeric
+    desc 'reaper [REGEXP]', 'Delete empty topics (optionally matching regexp)'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    option :parallel, aliases: %w[-p], desc: 'Number of topics to delete in parallel', type: :numeric, default: 10
+    option :delay, aliases: %w[-d], desc: 'Delay between deletes', type: :numeric
     def reaper(regexp='.*')
       with_kafka_client do |kafka_client|
         with_zk_client do |zk_client|
@@ -97,10 +97,10 @@ module Ktl
       end
     end
 
-    desc 'alter REGEXP', 'alter topic configuration'
-    option :add, aliases: %w[-a], desc: 'key-value pairs of config options to add', type: :hash, default: {}
-    option :remove, aliases: %w[-r], desc: 'key-value pairs of config options to remove', type: :array, default: []
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'alter REGEXP', 'Alter topic configuration'
+    option :add, aliases: %w[-a], desc: 'Key-value pairs of config options to add', type: :hash, default: {}
+    option :remove, aliases: %w[-r], desc: 'Key-value pairs of config options to remove', type: :array, default: []
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def alter(regexp)
       with_zk_client do |zk_client|
         opts = {zookeeper: options.zookeeper, topic: regexp}

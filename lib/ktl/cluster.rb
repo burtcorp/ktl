@@ -2,8 +2,8 @@
 
 module Ktl
   class Cluster < Command
-    desc 'stats', 'show statistics about cluster'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'stats', 'Show statistics about cluster'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def stats
       with_zk_client do |zk_client|
         task = ClusterStatsTask.new(zk_client, shell)
@@ -11,8 +11,8 @@ module Ktl
       end
     end
 
-    desc 'preferred-replica [REGEXP]', 'perform preferred replica leader elections'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'preferred-replica [REGEXP]', 'Perform preferred replica leader elections'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def preferred_replica(regexp='.*')
       with_zk_client do |zk_client|
         regexp = Regexp.new(regexp)
@@ -27,11 +27,11 @@ module Ktl
       end
     end
 
-    desc 'migrate-broker', 'migrate partitions from one broker to another'
-    option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'broker id of old leader'
-    option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'broker id of new leader'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
+    desc 'migrate-broker', 'Migrate partitions from one broker to another'
+    option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'Broker ID of old leader'
+    option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'Broker ID of new leader'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
     def migrate_broker
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
@@ -41,13 +41,13 @@ module Ktl
       end
     end
 
-    desc 'shuffle [REGEXP]', 'shuffle leaders and replicas for partitions'
-    option :brokers, type: :array, desc: 'broker ids'
-    option :blacklist, type: :array, desc: 'blacklisted broker ids'
-    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing based shuffle'
-    option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'replication factor to use'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'shuffle [REGEXP]', 'Shuffle leaders and replicas for partitions'
+    option :brokers, type: :array, desc: 'Broker IDs'
+    option :blacklist, type: :array, desc: 'Blacklisted broker IDs'
+    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
+    option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = options.rendezvous ? RendezvousShufflePlan : ShufflePlan
@@ -62,10 +62,10 @@ module Ktl
       end
     end
 
-    desc 'decommission-broker BROKER_ID', 'decommission a broker'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'max number of partitions to reassign'
-    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'whether to use Rendezvous-hashing'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'decommission-broker BROKER_ID', 'Decommission a broker'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
+    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def decommission_broker(broker_id)
       with_zk_client do |zk_client|
         if options.rendezvous?
@@ -78,9 +78,9 @@ module Ktl
       end
     end
 
-    desc 'reassignment-progress', 'show progress of latest reassignment'
-    option :verbose, aliases: %w[-v], desc: 'verbose output'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'zookeeper uri'
+    desc 'reassignment-progress', 'Show progress of latest reassignment'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def reassignment_progress
       with_zk_client do |zk_client|
         progress = ReassignmentProgress.new(zk_client, options.merge(logger: logger))
