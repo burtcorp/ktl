@@ -85,9 +85,9 @@ describe 'bin/ktl cluster' do
     end
   end
 
-  describe 'migrate' do
+  describe 'migrate-broker' do
     let :command do
-      'migrate'
+      'migrate-broker'
     end
 
     let :command_args do
@@ -110,7 +110,7 @@ describe 'bin/ktl cluster' do
     end
 
     it 'kick-starts a reassignment command for migrating partitions' do
-      silence { run(%w[cluster migrate], command_args + zk_args) }
+      silence { run(%w[cluster migrate-broker], command_args + zk_args) }
       expect(partitions).to contain_exactly(*reassigned_partitions)
     end
 
