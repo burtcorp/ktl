@@ -59,7 +59,7 @@ module Ktl
         names.each do |name|
           opts = options.merge(alter: nil, topic: name)
           topic_options = Kafka::Admin.to_topic_options(opts)
-          logger.warn %(if "#{name}" has a key, the partition logic or ordering of the messages will be affected)
+          logger.warn %(if "#{name}" uses keyed messages, the partition logic or ordering of the messages will be affected)
           silence_scala do
             Kafka::Admin::TopicCommand.alter_topic(zk_client.raw_client, topic_options)
           end

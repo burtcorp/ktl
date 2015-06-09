@@ -31,7 +31,7 @@ module Ktl
     option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'Broker ID of old leader'
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'Broker ID of new leader'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     def migrate_broker
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
@@ -43,10 +43,10 @@ module Ktl
 
     desc 'shuffle [REGEXP]', 'Shuffle leaders and replicas for partitions'
     option :brokers, type: :array, desc: 'Broker IDs'
-    option :blacklist, type: :array, desc: 'Blacklisted broker IDs'
+    option :blacklist, type: :array, desc: 'Broker IDs to exclude'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
     option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
@@ -63,7 +63,7 @@ module Ktl
     end
 
     desc 'decommission-broker BROKER_ID', 'Decommission a broker'
-    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign'
+    option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def decommission_broker(broker_id)
@@ -78,7 +78,7 @@ module Ktl
       end
     end
 
-    desc 'reassignment-progress', 'Show progress of latest reassignment'
+    desc 'reassignment-progress', 'Show progress of latest reassignment command'
     option :verbose, aliases: %w[-v], desc: 'Verbose output'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def reassignment_progress
