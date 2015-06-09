@@ -20,9 +20,9 @@ module Ktl
       with_zk_client do |zk_client|
         opts = {describe: nil}
         opts[:topic] = regexp if regexp
-        opts[:topics_with_overrides] = nil if options.with_overrides
-        opts[:unavailable_partitions] = nil if options.unavailable
-        opts[:under_replicated_partitions] = nil if options.under_replicated
+        opts[:topics_with_overrides] = nil if options.with_overrides?
+        opts[:unavailable_partitions] = nil if options.unavailable?
+        opts[:under_replicated_partitions] = nil if options.under_replicated?
         topic_options = Kafka::Admin.to_topic_options(opts)
         Kafka::Admin::TopicCommand.describe_topic(zk_client.raw_client, topic_options)
       end
