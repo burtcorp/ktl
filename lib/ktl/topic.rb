@@ -104,12 +104,8 @@ module Ktl
     def alter(regexp)
       with_zk_client do |zk_client|
         opts = {zookeeper: options.zookeeper, topic: regexp}
-        unless options.add.empty?
-          opts[:config] = options.add.map { |k, v| [k, v].join('=') }
-        end
-        unless options.remove.empty?
-          opts[:delete_config] = options.remove.dup
-        end
+        opts[:config] = options.add.dup unless options.add.empty?
+        opts[:delete_config] = options.remove.dup unless options.remove.empty?
         if opts[:config] || opts[:delete_config]
           topic_options = Kafka::Admin.to_topic_options(opts)
           silence_scala do
