@@ -2,8 +2,7 @@
 
 source 'https://rubygems.org'
 
-gem 'heller'
-gem 'thor'
+gemspec
 
 group :test do
   gem 'rspec'

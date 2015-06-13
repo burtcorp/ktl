@@ -1,3 +1,10 @@
+PATH
+  remote: .
+  specs:
+    ktl (1.0.0.pre0-java)
+      heller (~> 0.2)
+      thor (~> 0, < 1.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -48,7 +55,6 @@ PLATFORMS
   java
 
 DEPENDENCIES
-  heller
+  ktl!
   rspec
   simplecov
-  thor
