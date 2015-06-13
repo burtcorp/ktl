@@ -1,3 +1,4 @@
-tmp
-coverage
-.ruby-*
+/tmp
+/coverage
+/.ruby-*
+/Gemfile.lock
