@@ -139,7 +139,7 @@ describe 'bin/ktl topic' do
       Kafka::Test.create_kafka_server({
         'broker.id' => 1,
         'port' => 9192,
-        'zookeeper.connect' => 'localhost:2185/ktl-test',
+        'zookeeper.connect' => zk_uri + zk_chroot,
       })
     end
 
@@ -170,7 +170,7 @@ describe 'bin/ktl topic' do
       Kafka::Test.create_kafka_server({
         'broker.id' => 1,
         'port' => 9192,
-        'zookeeper.connect' => 'localhost:2185/ktl-test',
+        'zookeeper.connect' => zk_uri + zk_chroot,
       })
     end
 

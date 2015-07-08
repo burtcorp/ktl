@@ -9,16 +9,20 @@ shared_context 'integration setup' do
     'localhost:2185'
   end
 
+  let :zk_chroot do
+    '/ktl-test'
+  end
+
   let :control_zk do
     Kafka::Utils.new_zk_client(zk_uri)
   end
 
   let :ktl_zk do
-    Kafka::Utils.new_zk_client(zk_uri + '/ktl-test')
+    Kafka::Utils.new_zk_client(zk_uri + zk_chroot)
   end
 
   let :zk_args do
-    ['-z', zk_uri + '/ktl-test']
+    ['-z', zk_uri + zk_chroot]
   end
 
   def run(command, argv)
@@ -36,12 +40,12 @@ shared_context 'integration setup' do
   end
 
   def clear_zk_chroot
-    Kafka::Utils::ZkUtils.delete_path_recursive(control_zk, '/ktl-test')
+    Kafka::Utils::ZkUtils.delete_path_recursive(control_zk, zk_chroot)
   end
 
   def setup_zk_chroot
     clear_zk_chroot
-    Kafka::Utils::ZkUtils.make_sure_persistent_path_exists(control_zk, '/ktl-test')
+    Kafka::Utils::ZkUtils.make_sure_persistent_path_exists(control_zk, zk_chroot)
     Kafka::Utils::ZkUtils.setup_common_paths(ktl_zk)
   end
 
@@ -76,6 +80,14 @@ shared_context 'integration setup' do
       end
       consumer.close
     end
+  end
+
+  def publish_messages(broker, topic, num_messages, key=nil)
+    producer = Heller::Producer.new(broker)
+    num_messages.times do |num|
+      producer.push(Heller::Message.new(topic, "message #{num}", (key || num).to_s))
+    end
+    producer.close
   end
 
   before do
