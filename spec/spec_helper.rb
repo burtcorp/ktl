@@ -24,6 +24,8 @@ RSpec.configure do |config|
       layout = Log4j::PatternLayout.new('[%d] %p %m (%c)%n')
       appender = Log4j::FileAppender.new(layout, log_file, append = true)
       Log4j::BasicConfigurator.configure(appender)
+    else
+      Log4j::Logger.root_logger.set_level(Log4j::Level::FATAL)
     end
   end
 end
