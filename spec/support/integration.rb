@@ -97,6 +97,17 @@ shared_context 'integration setup' do
     end
   end
 
+  def run_in_thread(*args, &block)
+    latch = Ktl::JavaConcurrent::CountDownLatch.new(1)
+    t = Thread.new do
+      latch.count_down
+      silence { run(*args) }
+    end
+    latch.await
+    block.call(t)
+    t.join
+  end
+
   before do
     zk_server.start
     setup_zk_chroot

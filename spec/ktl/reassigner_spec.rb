@@ -122,13 +122,6 @@ module Ktl
         overflow = reassigner.load_overflow
         expect(overflow.size).to eq(4)
       end
-
-      it 'removes the previous overflow znodes if any exist' do
-        reassigner.load_overflow
-        2.times do |index|
-          expect(zk_client).to have_received(:delete_znode).with(%(/ktl/overflow/#{index}))
-        end
-      end
     end
 
     describe '#execute' do

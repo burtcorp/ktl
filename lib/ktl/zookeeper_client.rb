@@ -84,6 +84,22 @@ module Ktl
       @utils.path_exists(path)
     end
 
+    def watch_state(path, listener)
+      @client.subscribe_state_changes(path, listener)
+    end
+
+    def watch_data(path, listener)
+      @client.subscribe_data_changes(path, listener)
+    end
+
+    def watch_child(path, listener)
+      @client.subscribe_child_changes(path, listener)
+    end
+
+    def unsubscribe_data(path, listener)
+      @client.unsubscribe_data_changes(path, listener)
+    end
+
     private
 
     CONCURRENCY = 8

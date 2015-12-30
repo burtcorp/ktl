@@ -10,7 +10,7 @@ module Ktl
     end
 
     let :reassigner do
-      double(:reassigner, execute: nil, reassignment_in_progress?: false, overflow?: false, load_overflow: {})
+      double(:reassigner, execute: nil, reassignment_in_progress?: false, overflow?: false, limit: nil, load_overflow: {})
     end
 
     let :plan do

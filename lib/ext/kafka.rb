@@ -12,6 +12,9 @@ end
 
 module ZkClient
   java_import 'org.I0Itec.zkclient.ZkClient'
+  java_import 'org.I0Itec.zkclient.IZkStateListener'
+  java_import 'org.I0Itec.zkclient.IZkDataListener'
+  java_import 'org.I0Itec.zkclient.IZkChildListener'
 
   module Exception
     include_package 'org.I0Itec.zkclient.exception'
