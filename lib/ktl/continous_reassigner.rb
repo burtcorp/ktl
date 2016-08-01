@@ -8,9 +8,11 @@ module Ktl
       super(zk_client, options)
       @zk_utils = Kafka::Utils::ZkUtils
       @latch = JavaConcurrent::CountDownLatch.new(1)
+      @sleeper = options[:sleeper] || java.lang.Thread
     end
 
     def execute(reassignment)
+      Signal.trap('SIGINT', proc { puts 'Exiting due to Ctrl-C'; @latch.count_down })
       @zk_client.watch_data(@zk_utils.reassign_partitions_path, self)
       reassign(reassignment)
       @latch.await
@@ -35,6 +37,8 @@ module Ktl
         delete_previous_state
         @latch.count_down
       else
+        puts 'Waiting 5s before next assignment'
+        @sleeper.sleep(5 * 1000)
         reassign(reassignment)
       end
     end
