@@ -82,21 +82,6 @@ module Ktl
       end
     end
 
-    desc 'reaper [REGEXP]', 'Delete empty topics (optionally matching regexp)'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
-    option :parallel, aliases: %w[-p], desc: 'Number of topics to delete in parallel', type: :numeric, default: 10
-    option :delay, aliases: %w[-d], desc: 'Delay between deletes', type: :numeric
-    def reaper(regexp='.*')
-      with_kafka_client do |kafka_client|
-        with_zk_client do |zk_client|
-          reaper_options = options.merge(logger: logger)
-          regexp = Regexp.new(regexp)
-          reaper = TopicReaper.new(kafka_client, zk_client, regexp, reaper_options)
-          reaper.execute
-        end
-      end
-    end
-
     desc 'alter REGEXP', 'Alter topic configuration'
     option :add, aliases: %w[-a], desc: 'Key-value pairs of config options to add', type: :hash, default: {}
     option :remove, aliases: %w[-r], desc: 'Key-value pairs of config options to remove', type: :array, default: []

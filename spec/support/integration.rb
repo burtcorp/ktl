@@ -67,9 +67,13 @@ shared_context 'integration setup' do
 
   def wait_until_topics_exist(broker, topics)
     topics_exist, attempts = false, 0
+    host, port = broker.split(':')
+    port = port.to_i
+    consumer = Kafka::Consumer::SimpleConsumer.new(host, port, 30_000, 64*1024, "ktl-integration-#{rand(100000)}")
     until topics_exist do
-      consumer = Heller::Consumer.new(broker)
-      metadata = consumer.metadata
+      request = Kafka::JavaApi::TopicMetadataRequest.new([])
+      metadata = Kafka::TopicMetadataResponse.new(consumer.send(request))
+
       if topics.all? { |topic| metadata.leader_for(topic, 0) rescue false }
         topics_exist = true
       elsif attempts > 10
@@ -79,15 +83,8 @@ shared_context 'integration setup' do
         attempts += 1
       end
       consumer.close
+      Kafka::Metrics::KafkaMetricsGroup.remove_all_consumer_metrics(consumer.client_id)
     end
-  end
-
-  def publish_messages(broker, topic, num_messages, key=nil)
-    producer = Heller::Producer.new(broker)
-    num_messages.times do |num|
-      producer.push(Heller::Message.new(topic, "message #{num}", (key || num).to_s))
-    end
-    producer.close
   end
 
   before do

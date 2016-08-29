@@ -2,7 +2,6 @@
 
 require 'thor'
 require 'json'
-require 'heller'
 require 'logger'
 require 'ext/kafka'
 require 'ext/thor'
@@ -36,9 +35,7 @@ end
 require 'ktl/command'
 require 'ktl/cluster'
 require 'ktl/cluster_stats_task'
-require 'ktl/consumer'
 require 'ktl/decommission_plan'
-require 'ktl/kafka_client'
 require 'ktl/migration_plan'
 require 'ktl/reassigner'
 require 'ktl/reassignment_progress'
