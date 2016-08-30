@@ -12,7 +12,7 @@ module Ktl
     def generate
       plan = Scala::Collection::Map.empty
       brokers = @zk_client.broker_ids
-      brokers = brokers - @broker_id
+      brokers = brokers.filter { |b| b != @broker_id }
       partitions = @zk_client.all_partitions
       topics = topics_from(partitions)
       assignments = @zk_client.replica_assignment_for_topics(topics)

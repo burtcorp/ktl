@@ -13,6 +13,10 @@ module Ktl
       double(:zk_client)
     end
 
+    let :zk_utils do
+      Kafka::Utils::ZkUtils.new(nil, nil, false)
+    end
+
     let :options do
       {}
     end
@@ -93,7 +97,7 @@ module Ktl
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
         end
-        Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
+        zk_utils.format_as_reassignment_json(r)
       end
 
       let :overflow_part_2 do
@@ -103,7 +107,7 @@ module Ktl
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
         end
-        Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(r)
+        zk_utils.format_as_reassignment_json(r)
       end
 
       before do
@@ -171,7 +175,7 @@ module Ktl
         end
 
         let :json do
-          Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(reassignment)
+          zk_utils.format_as_reassignment_json(reassignment)
         end
 
         it 'does not split the reassignment' do
@@ -226,7 +230,7 @@ module Ktl
         it 'writes the remaining JSON to an overflow path in ZK' do
           overflow = Scala::Collection::Map.empty
           overflow = overflow_znodes.reduce(overflow) do |acc, (path, data)|
-            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            data = zk_utils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
           expect(overflow.size).to eq(10_000)
@@ -235,7 +239,7 @@ module Ktl
         it 'writes the same JSON to a state path' do
           state = Scala::Collection::Map.empty
           state = reassign_znodes.reduce(state) do |acc, (path, data)|
-            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            data = zk_utils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
           expect(state.size).to eq(10_000)
@@ -268,7 +272,7 @@ module Ktl
         it 'writes the remaining JSON to an overflow path in ZK' do
           overflow = Scala::Collection::Map.empty
           overflow = overflow_znodes.reduce(overflow) do |acc, (path, data)|
-            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            data = zk_utils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
           expect(overflow.size).to eq(80)
@@ -277,7 +281,7 @@ module Ktl
         it 'writes the same JSON to a state path' do
           reassigned = Scala::Collection::Map.empty
           reassigned = reassign_znodes.reduce(reassigned) do |acc, (path, data)|
-            data = Kafka::Utils::ZkUtils.parse_partition_reassignment_data(data)
+            data = zk_utils.parse_partition_reassignment_data(data)
             acc.send('++', data)
           end
           expect(reassigned.size).to eq(20)

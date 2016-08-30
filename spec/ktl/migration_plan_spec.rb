@@ -36,18 +36,18 @@ module Ktl
       end
 
       it 'returns an object with topic-partitions <-> new AR mappings' do
-        f = plan.first
+        f = plan.head
         expect(f.first).to be_a(Kafka::TopicAndPartition)
         expect(f.last).to be_a(Scala::Collection::Mutable::MutableList)
       end
 
       it 'includes the new leader in the AR mapping' do
-        f = plan.first
+        f = plan.head
         expect(f.last.contains?(1)).to be true
       end
 
       it 'includes the previous ARs in the new mapping' do
-        f = plan.first
+        f = plan.head
         expect(f.last.contains?(2)).to be true
       end
 

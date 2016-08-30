@@ -13,6 +13,8 @@ module Ktl
     rescue => e
       logger.error '%s (%s)' % [e.message, e.class.name]
       logger.debug e.backtrace.join($/)
+      $stderr.puts '%s (%s)' % [e.message, e.class.name]
+      $stderr.puts e.backtrace.join($/)
     ensure
       zk_client.close if zk_client
     end
@@ -24,8 +26,9 @@ module Ktl
     end
 
     def silence_scala(&block)
-      baos = ByteArrayOutputStream.new
-      Scala::Console.with_out(baos) { block.call }
+      block.call
+      # baos = ByteArrayOutputStream.new
+      # Scala::Console.with_out(baos) { block.call }
     end
   end
 end

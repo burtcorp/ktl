@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 require 'kafka-jars'
-
+require 'log4j-jars'
 
 module Log4j
   include_package 'org.apache.log4j'
@@ -22,6 +22,7 @@ end
 module Scala
   java_import 'scala.Console'
   java_import 'scala.Tuple2'
+  java_import 'scala.Option'
 
   class Tuple2
     alias_method :first, :_1
@@ -68,13 +69,22 @@ module Kafka
 
     def self.get_partitions_for_topic(zk, topic)
       topics = Scala::Collection::Immutable::List.from_array([topic].to_java)
-      partitions = ZkUtils.get_partitions_for_topics(zk, topics)
+      partitions = zk.get_partitions_for_topics(topics)
       partitions.get(topic).get
     end
 
     def self.delete_topic(zk, topic)
-      ZkUtils.create_persistent_path(zk, ZkUtils.get_delete_topic_path(topic), '')
+      acl = Kafka::Utils::ZkUtils::DefaultAcls(false)
+      zk.create_persistent_path(ZkUtils.get_delete_topic_path(topic), '', acl)
     end
+  end
+
+  module Api
+    include_package 'kafka.api'
+  end
+
+  module Cluster
+    include_package 'kafka.cluster'
   end
 
   module Admin
@@ -101,9 +111,13 @@ module Kafka
     end
 
     def self.assign_replicas_to_brokers(brokers, partitions, repl_factor, index=-1, partition=-1)
-      assignment = AdminUtils.assign_replicas_to_brokers(brokers, partitions, repl_factor, index, partition)
+      assignment = AdminUtils.assign_replicas_to_brokers(brokers, partitions.to_java(:int), repl_factor.to_java(:int), index.to_java(:int), partition.to_java(:int))
       ScalaEnumerable.new(assignment)
     end
+  end
+
+  module Protocol
+    java_import 'org.apache.kafka.common.protocol.SecurityProtocol'
   end
 
   module Common

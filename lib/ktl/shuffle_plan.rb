@@ -42,8 +42,9 @@ module Ktl
     end
 
     def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
-      brokers = Scala::Collection::JavaConversions.as_scala_iterable(brokers.map { |x| x.to_java(:int) }).to_list
-      Kafka::Admin.assign_replicas_to_brokers(brokers, partition_count, replica_count)
+      broker_metadatas = brokers.map { |x| Kafka::Admin::BrokerMetadata.new(x.to_java(:int), Scala::Option[nil]) }
+      broker_metadatas = Scala::Collection::JavaConversions.as_scala_iterable(broker_metadatas).to_seq
+      Kafka::Admin.assign_replicas_to_brokers(broker_metadatas, partition_count, replica_count)
     rescue Kafka::Admin::AdminOperationException => e
       raise ArgumentError, sprintf('%s (%s)', e.message, e.class.name), e.backtrace
     end

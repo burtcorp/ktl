@@ -6,19 +6,19 @@ shared_context 'integration setup' do
   end
 
   let :zk_uri do
-    'localhost:2185'
+    '127.0.0.1:2185'
   end
 
   let :zk_chroot do
     '/ktl-test'
   end
 
-  let :control_zk do
-    Kafka::Utils.new_zk_client(zk_uri)
+  let :ktl_zk do
+    Kafka::Utils::ZkUtils.apply(zk_uri + zk_chroot, 30_000, 30_000, false)
   end
 
-  let :ktl_zk do
-    Kafka::Utils.new_zk_client(zk_uri + zk_chroot)
+  let :zk_utils do
+    Kafka::Utils::ZkUtils.apply(zk_uri, 30000, 30000, false)
   end
 
   let :zk_args do
@@ -30,38 +30,48 @@ shared_context 'integration setup' do
   end
 
   def fetch_json(path, key=nil)
-    d = Kafka::Utils::ZkUtils.read_data(ktl_zk, path).first
+    d = ktl_zk.read_data(path).first
     d = JSON.parse(d)
     key ? d[key] : d
   end
 
   def register_broker(id, name='localhost')
-    Kafka::Utils::ZkUtils.register_broker_in_zk(ktl_zk, id, name, 9092, 1, 57476)
+    endpoint_tuple = Scala::Tuple.new(
+      Kafka::Protocol::SecurityProtocol.for_name('PLAINTEXT'),
+      Kafka::Cluster::EndPoint.create_end_point("PLAINTEXT://#{name}:9092")
+    )
+    endpoints = Scala::Collection::Map.empty
+    endpoints += endpoint_tuple
+    ktl_zk.register_broker_in_zk(id, name, 9092, endpoints, 57476, Scala::Option["rack#{id}"], Kafka::Api::ApiVersion.apply('0.10.0.1'))
   end
 
   def clear_zk_chroot
-    Kafka::Utils::ZkUtils.delete_path_recursive(control_zk, zk_chroot)
+    zk_utils.delete_path_recursive(zk_chroot)
   end
 
   def setup_zk_chroot
     clear_zk_chroot
-    Kafka::Utils::ZkUtils.make_sure_persistent_path_exists(control_zk, zk_chroot)
-    Kafka::Utils::ZkUtils.setup_common_paths(ktl_zk)
+    zk_utils.create_persistent_path(zk_chroot, '', no_acl)
+    ktl_zk.setup_common_paths
   end
 
   def create_topic(*args)
     silence { run(%w[topic create], args + zk_args) }
   end
 
+  def no_acl
+    Kafka::Utils::ZkUtils::DefaultAcls(false)
+  end
+
   def create_partitions(topic, options={})
-    partitions_path = Kafka::Utils::ZkUtils.get_topic_partitions_path(topic)
-    Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk, partitions_path, '')
+    partitions_path = ktl_zk.class.get_topic_partitions_path(topic)
+    ktl_zk.create_persistent_path(partitions_path, '', no_acl)
     partitions = options.fetch(:partitions, 1)
     partitions.times.map do |i|
       state_path = %(#{partitions_path}/#{i}/state)
       isr = options.fetch(:isr, [0])
       state = {controller_epoch: 1, leader: isr.first, leader_epoch: 1, version: 1, isr: isr}
-      Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk, state_path, state.to_json)
+      ktl_zk.create_persistent_path(state_path, state.to_json, no_acl)
     end
   end
 
@@ -94,7 +104,7 @@ shared_context 'integration setup' do
 
   after do
     clear_zk_chroot
-    control_zk.close
+    zk_utils.close
     ktl_zk.close
     zk_server.shutdown
   end

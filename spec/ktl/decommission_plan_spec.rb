@@ -18,11 +18,7 @@ module Ktl
     end
 
     let :brokers do
-      b = Scala::Collection::Immutable::List.empty
-      b = b.send('::', to_int(0))
-      b = b.send('::', to_int(1))
-      b = b.send('::', to_int(2))
-      b
+      scala_int_list([0, 1, 2])
     end
 
     let :partitions do

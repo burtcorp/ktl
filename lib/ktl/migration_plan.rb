@@ -4,8 +4,8 @@ module Ktl
   class MigrationPlan
     def initialize(zk_client, old_leader, new_leader)
       @zk_client = zk_client
-      @old_leader = old_leader
-      @new_leader = new_leader
+      @old_leader = old_leader.to_java
+      @new_leader = new_leader.to_java
     end
 
     def generate
