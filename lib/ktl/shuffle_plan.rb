@@ -71,4 +71,41 @@ module Ktl
 
     SEED = 1683520333
   end
+
+  class RackAwareShufflePlan < RendezvousShufflePlan
+    def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
+      if replica_count > brokers.size
+        raise ArgumentError, sprintf('replication factor: %i larger than available brokers: %i', replica_count, brokers.size)
+      end
+
+      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(@zk_client.utils, Kafka::Admin::RackAwareMode[1], Scala::Option[nil])
+      broker_metadatas = Scala::Collection::JavaConversions.seq_as_java_list(broker_metadatas).to_a
+      racks = Hash.new { |hash, key| hash[key] = [] }
+      brokers = broker_metadatas.each do |bm|
+        rack = bm.rack.getOrElse(nil)
+        racks[rack] << bm.id
+      end
+
+      result = []
+      partition_count.times do |partition|
+        first_sorted = racks.each.flat_map do |rack, rack_brokers|
+          hashed_brokers = rack_brokers.map do |broker|
+            key = [partition, topic, broker].pack('l<a*l<')
+            {id: broker, hash: Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)}
+          end.sort_by do |broker|
+            broker[:hash]
+          end
+          hashed_brokers.each_with_index do |broker, index|
+            broker[:index] = index
+          end
+        end
+        sorted = first_sorted.sort_by do |broker|
+          [broker[:index], broker[:hash], broker[:id]]
+        end
+        selected = sorted.take(replica_count).map {|broker| broker[:id]}
+        result.push(Scala::Tuple.new(partition, Scala::Collection::JavaConversions.as_scala_iterable(selected).to_list))
+      end
+      result
+    end
+  end
 end
