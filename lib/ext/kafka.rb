@@ -114,6 +114,11 @@ module Kafka
       assignment = AdminUtils.assign_replicas_to_brokers(brokers, partitions.to_java(:int), repl_factor.to_java(:int), index.to_java(:int), partition.to_java(:int))
       ScalaEnumerable.new(assignment)
     end
+
+    def self.get_broker_metadatas(zk_client, brokers)
+      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(zk_client.utils, Kafka::Admin::RackAwareMode[1], Scala::Option[Scala::Collection::JavaConversions.as_scala_iterable(brokers).to_list])
+      Scala::Collection::JavaConversions.seq_as_java_list(broker_metadatas).to_a
+    end
   end
 
   module Protocol
