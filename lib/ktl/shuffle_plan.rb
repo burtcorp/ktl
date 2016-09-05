@@ -78,7 +78,7 @@ module Ktl
         raise ArgumentError, sprintf('replication factor: %i larger than available brokers: %i', replica_count, brokers.size)
       end
 
-      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(@zk_client.utils, Kafka::Admin::RackAwareMode[1], Scala::Option[nil])
+      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(@zk_client.utils, Kafka::Admin::RackAwareMode[1], Scala::Option[Scala::Collection::JavaConversions.as_scala_iterable(brokers).to_list])
       broker_metadatas = Scala::Collection::JavaConversions.seq_as_java_list(broker_metadatas).to_a
       racks = Hash.new { |hash, key| hash[key] = [] }
       brokers = broker_metadatas.each do |bm|
