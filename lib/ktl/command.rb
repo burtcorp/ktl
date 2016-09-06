@@ -26,9 +26,8 @@ module Ktl
     end
 
     def silence_scala(&block)
-      block.call
-      # baos = ByteArrayOutputStream.new
-      # Scala::Console.with_out(baos) { block.call }
+      baos = ByteArrayOutputStream.new
+      Scala::Console.with_out(baos) { block.call }
     end
   end
 end
