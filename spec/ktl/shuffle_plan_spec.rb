@@ -292,7 +292,7 @@ module Ktl
           3
         end
 
-        it 'chooses one broker per shard' do
+        it 'chooses one broker per rack' do
           each_reassignment(plan.generate) do |topic, partition, brokers|
             racks = brokers.map { |broker| generate_broker_metadata(broker).rack.get }
             expect(racks.uniq.size).to eql(3)
