@@ -81,8 +81,12 @@ module Ktl
       broker_metadatas = Kafka::Admin.get_broker_metadatas(@zk_client, brokers)
       racks = Hash.new { |hash, key| hash[key] = [] }
       brokers = broker_metadatas.each do |bm|
-        rack = bm.rack.getOrElse(nil)
-        racks[rack] << bm.id
+        if bm.rack.isDefined
+          rack = bm.rack.get
+          racks[rack] << bm.id
+        else
+          raise "Broker #{bm.id} is missing rack information, unable to create rack aware shuffle plan."
+        end
       end
 
       result = []
