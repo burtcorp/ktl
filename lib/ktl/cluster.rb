@@ -45,7 +45,7 @@ module Ktl
     option :brokers, type: :array, desc: 'Broker IDs'
     option :blacklist, type: :array, desc: 'Broker IDs to exclude'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
-    option :rackaware, aliases: %w[-a], type: :boolean, desc: 'Whether to use Rack aware + Rendezvous-hashing based shuffle'
+    option :rack_aware, aliases: %w[-a], type: :boolean, desc: 'Whether to use Rack aware + Rendezvous-hashing based shuffle'
     option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
