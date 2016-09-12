@@ -32,6 +32,7 @@ module Ktl
     option :partitions, aliases: %w[-p], default: '1', desc: 'Partitions for new topic(s)'
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'Replication factor for new topic(s)'
     option :replica_assignment, aliases: %w[-a], desc: 'Manual replica assignment'
+    option :disable_rack_aware, desc: 'Disable rack awareness'
     option :config, aliases: %w[-c], desc: 'Key-value pairs of configuration options', type: :hash, default: {}
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def create(*names)
