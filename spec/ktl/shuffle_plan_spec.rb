@@ -219,15 +219,18 @@ module Ktl
     end
 
     def generate_broker_metadata(broker_id)
-      index = broker_id %10
-      double("broker_#{index}", id: broker_id).tap do |broker|
-        rack_name = "rack-#{index}"
-        rack = double(rack_name, getOrElse: rack_name)
-        allow(broker).to receive(:rack).and_return(rack)
+      @brokers[broker_id] ||= begin
+        index = broker_id % 10
+        double("broker_#{index}", id: broker_id).tap do |broker|
+          rack_name = "rack-#{index}"
+          rack = double(rack_name, isDefined: true, get: rack_name)
+          allow(broker).to receive(:rack).and_return(rack)
+        end
       end
     end
 
     before do
+      @brokers = {}
       allow(zk_client).to receive(:utils).and_return(zk_utils)
       allow(Kafka::Admin).to receive(:get_broker_metadatas) do |zk_client, broker_list|
         broker_list.map do |broker|
@@ -291,9 +294,15 @@ module Ktl
 
         it 'chooses one broker per shard' do
           each_reassignment(plan.generate) do |topic, partition, brokers|
-            racks = brokers.map {|broker| generate_broker_metadata(broker).rack.getOrElse}
+            racks = brokers.map { |broker| generate_broker_metadata(broker).rack.get }
             expect(racks.uniq.size).to eql(3)
           end
+        end
+
+        it 'raises exception if broker is missing rack configuration' do
+          b = generate_broker_metadata(203)
+          allow(b.rack).to receive(:isDefined).and_return(false)
+          expect { plan.generate }.to raise_error
         end
       end
     end
