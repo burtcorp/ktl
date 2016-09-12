@@ -51,7 +51,7 @@ module Ktl
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
-        plan_factory = if options.rackaware
+        plan_factory = if options.rack_aware
           RackAwareShufflePlan
         elsif options.rendezvous
           RendezvousShufflePlan

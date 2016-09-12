@@ -115,8 +115,17 @@ module Kafka
       ScalaEnumerable.new(assignment)
     end
 
-    def self.get_broker_metadatas(zk_client, brokers)
-      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(zk_client.utils, Kafka::Admin::RackAwareMode[1], Scala::Option[Scala::Collection::JavaConversions.as_scala_iterable(brokers).to_list])
+    def self.get_broker_metadatas(zk_client, brokers, force_rack = true)
+      rack_aware = if force_rack
+        JRuby.runtime.jruby_class_loader.load_class('kafka.admin.RackAwareMode$Enforced$').get_declared_field('MODULE$').get(nil)
+      else
+        JRuby.runtime.jruby_class_loader.load_class('kafka.admin.RackAwareMode$Safe$').get_declared_field('MODULE$').get(nil)
+      end
+      broker_metadatas = Kafka::Admin::AdminUtils.get_broker_metadatas(
+        zk_client.utils, 
+        rack_aware,
+        Scala::Option[Scala::Collection::JavaConversions.as_scala_iterable(brokers).to_list]
+      )
       Scala::Collection::JavaConversions.seq_as_java_list(broker_metadatas).to_a
     end
   end

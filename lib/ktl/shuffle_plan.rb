@@ -77,8 +77,15 @@ module Ktl
       if replica_count > brokers.size
         raise ArgumentError, sprintf('replication factor: %i larger than available brokers: %i', replica_count, brokers.size)
       end
-
-      broker_metadatas = Kafka::Admin.get_broker_metadatas(@zk_client, brokers)
+      begin
+        broker_metadatas = Kafka::Admin.get_broker_metadatas(@zk_client, brokers)
+      rescue Java::KafkaAdmin::AdminOperationException => e
+        if e.message.match '--disable-rack-aware'
+          raise "Not all brokers have rack information. Unable to create rack aware shuffle plan."
+        else
+          raise e
+        end
+      end
       racks = Hash.new { |hash, key| hash[key] = [] }
       brokers = broker_metadatas.each do |bm|
         if bm.rack.isDefined
