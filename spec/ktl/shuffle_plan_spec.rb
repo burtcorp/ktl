@@ -300,9 +300,9 @@ module Ktl
         end
 
         it 'raises exception if broker is missing rack configuration' do
-          b = generate_broker_metadata(203)
-          allow(b.rack).to receive(:isDefined).and_return(false)
-          expect { plan.generate }.to raise_error
+          broker_metadata = generate_broker_metadata(203)
+          allow(broker_metadata.rack).to receive(:isDefined).and_return(false)
+          expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
         end
       end
     end
