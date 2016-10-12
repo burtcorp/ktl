@@ -73,32 +73,23 @@ module Ktl
   end
 
   class RackAwareShufflePlan < RendezvousShufflePlan
+    def initialize(*args)
+      super
+      @rack_mappings = {}
+    end
+
     def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
       if replica_count > brokers.size
         raise ArgumentError, sprintf('replication factor: %i larger than available brokers: %i', replica_count, brokers.size)
       end
-      begin
-        broker_metadatas = Kafka::Admin.get_broker_metadatas(@zk_client, brokers)
-      rescue Java::KafkaAdmin::AdminOperationException => e
-        if e.message.match '--disable-rack-aware'
-          raise "Not all brokers have rack information. Unable to create rack aware shuffle plan."
-        else
-          raise e
-        end
-      end
-      racks = Hash.new { |hash, key| hash[key] = [] }
-      brokers = broker_metadatas.each do |bm|
-        if bm.rack.isDefined
-          rack = bm.rack.get
-          racks[rack] << bm.id
-        else
-          raise "Broker #{bm.id} is missing rack information, unable to create rack aware shuffle plan."
-        end
-      end
-
       result = []
+      racks = brokers.each_with_object({}) do |broker, acc|
+        rack = rack_for(broker)
+        acc[rack] ||= []
+        acc[rack] << broker
+      end
       partition_count.times do |partition|
-        first_sorted = racks.each.flat_map do |rack, rack_brokers|
+        first_sorted = racks.flat_map do |rack, rack_brokers|
           hashed_brokers = rack_brokers.map do |broker|
             key = [partition, topic, broker].pack('l<a*l<')
             {id: broker, hash: Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)}
@@ -116,6 +107,26 @@ module Ktl
         result.push(Scala::Tuple.new(partition, Scala::Collection::JavaConversions.as_scala_iterable(selected).to_list))
       end
       result
+    end
+
+    private
+
+    def rack_for(broker_id)
+      unless @rack_mappings[broker_id]
+        broker_metadata = Kafka::Admin.get_broker_metadatas(@zk_client, [broker_id]).first
+        rack = broker_metadata.rack
+        unless rack.isDefined
+          raise "Broker #{broker_metadata.id} is missing rack information, unable to create rack aware shuffle plan."
+        end
+        @rack_mappings[broker_id] = rack.get
+      end
+      @rack_mappings[broker_id]
+    rescue Java::KafkaAdmin::AdminOperationException => e
+      if e.message.match '--disable-rack-aware'
+        raise "Not all brokers have rack information. Unable to create rack aware shuffle plan."
+      else
+        raise e
+      end
     end
   end
 end
