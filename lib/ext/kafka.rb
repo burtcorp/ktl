@@ -1,7 +1,6 @@
 # encoding: utf-8
 
 require 'kafka-jars'
-require 'log4j-jars'
 
 module Log4j
   include_package 'org.apache.log4j'
