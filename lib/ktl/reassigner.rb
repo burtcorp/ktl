@@ -89,11 +89,15 @@ module Ktl
     end
 
     def reassignment_json(reassignment)
-      Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(reassignment)
+      zk_utils.format_as_reassignment_json(reassignment)
     end
 
     def parse_reassignment_json(json)
-      Kafka::Utils::ZkUtils.parse_partition_reassignment_data(json)
+      zk_utils.parse_partition_reassignment_data(json)
+    end
+
+    def zk_utils
+      @zk_utils ||= Kafka::Utils::ZkUtils.new(nil, nil, false)
     end
 
     def maybe_split_by_limit(reassignment, limit=nil)

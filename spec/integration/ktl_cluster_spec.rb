@@ -12,7 +12,7 @@ describe 'bin/ktl cluster' do
   end
 
   before do
-    register_broker(0, 'test-host-0')
+    register_broker(0)
   end
 
   describe 'stats' do
@@ -26,7 +26,7 @@ describe 'bin/ktl cluster' do
       expect(output).to include('Cluster status:')
       expect(output).to include('topics: 1 (2 partitions)')
       expect(output).to include('brokers: 1')
-      expect(output).to include('- 0 (test-host-0) leader for 2 partitions (100.00 %)')
+      expect(output).to include('- 0 leader for 2 partitions (100.00 %)')
     end
   end
 
@@ -39,7 +39,7 @@ describe 'bin/ktl cluster' do
             {topic: 'topic1', partition: 0, replicas: [1]}
           ]
         }.to_json
-        Kafka::Utils::ZkUtils.create_persistent_path(ktl_zk, '/ktl/overflow/0', overflow_json)
+        ktl_zk.create_persistent_path('/ktl/overflow/0', overflow_json, no_acl)
       end
 
       before do

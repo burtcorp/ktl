@@ -13,12 +13,12 @@ describe 'bin/ktl topic' do
 
   describe 'list' do
     before do
-      create_topic('topic1', %w[topic1 --partitions 1 --replication-factor 1])
+      create_topic(%w[topic1 --partitions 1 --replication-factor 1])
     end
 
     it 'lists current topics to $stdout' do
       output = capture { run(%w[topic list], zk_args) }
-      expect(output).to match('topic1')
+      expect(output.strip).to eq('topic1')
     end
   end
 
@@ -72,13 +72,13 @@ describe 'bin/ktl topic' do
     end
 
     it 'uses given number of partitions' do
-      partitions = Kafka::Utils.get_partitions_for_topic(ktl_zk, 'topic1')
-      expect(partitions.size).to eq(2)
+      partitions = ktl_zk.get_partitions_for_topics(scala_list(['topic1']))
+      expect(partitions['topic1'].size).to eq(2)
     end
 
     it 'uses given replication factor' do
-      2.times do |i|
-        replicas = Kafka::Utils::ZkUtils.get_replicas_for_partition(ktl_zk, 'topic1', i)
+      2.times do |index|
+        replicas = ktl_zk.get_replicas_for_partition('topic1', index)
         expect(replicas.size).to eq(2)
       end
     end
@@ -89,10 +89,12 @@ describe 'bin/ktl topic' do
       end
 
       it 'uses the given replica assignment' do
-        replicas = Kafka::Utils::ZkUtils.get_replicas_for_partition(ktl_zk, 'topic1', 0)
-        expect(replicas).to eq(scala_int_list([0, 1]))
-        replicas = Kafka::Utils::ZkUtils.get_replicas_for_partition(ktl_zk, 'topic1', 1)
-        expect(replicas).to eq(scala_int_list([1, 0]))
+        replicas = []
+        ktl_zk.get_replicas_for_partition('topic1', 0).foreach { |r| replicas << r }
+        expect(replicas).to eq([0, 1])
+        replicas.clear
+        ktl_zk.get_replicas_for_partition('topic1', 1).foreach { |r| replicas << r }
+        expect(replicas).to eq([1, 0])
       end
     end
 
@@ -110,15 +112,15 @@ describe 'bin/ktl topic' do
 
   describe 'add-partitions' do
     before do
-      create_topic('topic1', %w[topic1 --partitions 1 --replication-factor 2])
+      create_topic(%w[topic1 --partitions 1 --replication-factor 2])
     end
 
     it 'expands the number of partitions for given topic' do
-      partitions = Kafka::Utils.get_partitions_for_topic(ktl_zk, 'topic1')
-      expect(partitions.size).to eq(1)
+      partitions = ktl_zk.get_partitions_for_topics(scala_list(['topic1']))
+      expect(partitions['topic1'].size).to eq(1)
       silence { run(%w[topic add-partitions], %w[topic1 --partitions 2] + zk_args) }
-      partitions = Kafka::Utils.get_partitions_for_topic(ktl_zk, 'topic1')
-      expect(partitions.size).to eq(2)
+      partitions = ktl_zk.get_partitions_for_topics(scala_list(['topic1']))
+      expect(partitions['topic1'].size).to eq(2)
     end
   end
 
@@ -130,38 +132,7 @@ describe 'bin/ktl topic' do
     it 'creates a delete marker for given topic' do
       silence { run(%w[topic delete], %w[topic1] + zk_args) }
       delete_path = Kafka::Utils::ZkUtils.get_delete_topic_path('topic1')
-      expect(ktl_zk.exists?(delete_path)).to be true
-    end
-  end
-
-  describe 'reaper' do
-    let :kafka_broker do
-      Kafka::Test.create_kafka_server({
-        'broker.id' => 1,
-        'port' => 9192,
-        'zookeeper.connect' => zk_uri + zk_chroot,
-      })
-    end
-
-    before do
-      clear_zk_chroot
-      kafka_broker.start
-      create_topic(%w[topic1 --partitions 1])
-      create_topic(%w[topic2 --partitions 2])
-      create_topic(%w[topic-3 --partitions 3])
-      wait_until_topics_exist('localhost:9192', %w[topic1 topic2 topic-3])
-    end
-
-    after do
-      kafka_broker.shutdown
-    end
-
-    it 'creates a delete marker for each empty topic' do
-      silence { run(%w[topic reaper ^topic\d$ --delay 0], zk_args) }
-      %w[topic1 topic2].each do |topic|
-        delete_path = Kafka::Utils::ZkUtils.get_delete_topic_path(topic)
-        expect(ktl_zk.exists?(delete_path)).to be true
-      end
+      expect(ktl_zk.path_exists?(delete_path)).to be true
     end
   end
 

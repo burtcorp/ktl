@@ -32,6 +32,7 @@ module Ktl
     option :partitions, aliases: %w[-p], default: '1', desc: 'Partitions for new topic(s)'
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'Replication factor for new topic(s)'
     option :replica_assignment, aliases: %w[-a], desc: 'Manual replica assignment'
+    option :disable_rack_aware, desc: 'Disable rack awareness'
     option :config, aliases: %w[-c], desc: 'Key-value pairs of configuration options', type: :hash, default: {}
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def create(*names)
@@ -78,21 +79,6 @@ module Ktl
         topics.foreach do |topic|
           Kafka::Utils.delete_topic(zk_client.raw_client, topic)
           logger.debug %(successfully marked "#{topic}" for deletion)
-        end
-      end
-    end
-
-    desc 'reaper [REGEXP]', 'Delete empty topics (optionally matching regexp)'
-    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
-    option :parallel, aliases: %w[-p], desc: 'Number of topics to delete in parallel', type: :numeric, default: 10
-    option :delay, aliases: %w[-d], desc: 'Delay between deletes', type: :numeric
-    def reaper(regexp='.*')
-      with_kafka_client do |kafka_client|
-        with_zk_client do |zk_client|
-          reaper_options = options.merge(logger: logger)
-          regexp = Regexp.new(regexp)
-          reaper = TopicReaper.new(kafka_client, zk_client, regexp, reaper_options)
-          reaper.execute
         end
       end
     end

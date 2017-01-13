@@ -18,11 +18,11 @@ module Ktl
     end
 
     let :brokers do
-      b = Scala::Collection::Immutable::List.empty
-      b = b.send('::', to_int(0))
-      b = b.send('::', to_int(1))
-      b = b.send('::', to_int(2))
-      b
+      brokers = Scala::Collection::Mutable::ArrayBuffer.empty
+      brokers.send('+=', 0)
+      brokers.send('+=', 1)
+      brokers.send('+=', 2)
+      brokers
     end
 
     let :partitions do
@@ -84,11 +84,11 @@ module Ktl
         end
 
         let :brokers do
-          b = Scala::Collection::Immutable::List.empty
-          b = b.send('::', to_int(0))
-          b = b.send('::', to_int(1))
-          b = b.send('::', to_int(2))
-          b = b.send('::', to_int(3))
+          b = Scala::Collection::Mutable::ArrayBuffer.empty
+          b = b.send('+=', 0)
+          b = b.send('+=', 1)
+          b = b.send('+=', 2)
+          b = b.send('+=', 3)
           b
         end
 
@@ -109,11 +109,11 @@ module Ktl
 
       context 'when there isn\'t enough brokers to meet replication factor' do
         let :brokers do
-          b = Scala::Collection::Immutable::List.empty
-          b = b.send('::', to_int(0))
-          b = b.send('::', to_int(1))
-          b = b.send('::', to_int(2))
-          b = b.send('::', to_int(3))
+          b = Scala::Collection::Mutable::ArrayBuffer.empty
+          b = b.send('+=', 0)
+          b = b.send('+=', 1)
+          b = b.send('+=', 2)
+          b = b.send('+=', 3)
           b
         end
 

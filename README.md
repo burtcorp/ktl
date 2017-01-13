@@ -51,7 +51,8 @@ track the progress of a reassignment.
 The `shuffle` subcommand can either perform a random reassignment of partitions,
 or it can use [rendezvous hashing](http://en.wikipedia.org/wiki/Rendezvous_hashing),
 which will minimize the number of partitions that has to move between replicas
-when adding or removing brokers.
+when adding or removing brokers. There is also rack aware rendezvous hashing,
+which will ensure that data is properly replicated across racks.
 
 To start a random reassignment of the replica assignment of partitions matching
 `^test.*`, but leaving the rest alone:
@@ -61,6 +62,10 @@ $ ktl cluster shuffle '^test.*' -z localhost:2181/test
 To do the same thing but using rendezvous hashing:
 ```shell
 $ ktl cluster shuffle '^test.*' -R -z localhost:2181/test
+```
+To do the same thing using rack aware rendezvous hashing:
+```shell
+$ ktl cluster shuffle '^test.*' -a -z localhost:2181/test
 ```
 
 #### Dealing with ZooKeeper's znode limit

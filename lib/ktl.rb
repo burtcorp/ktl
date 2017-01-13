@@ -1,8 +1,11 @@
 # encoding: utf-8
 
+unless defined?($SLF4J_BACKEND)
+  $SLF4J_BACKEND = 'log4j12'
+end
+
 require 'thor'
 require 'json'
-require 'heller'
 require 'logger'
 require 'ext/kafka'
 require 'ext/thor'
@@ -36,9 +39,7 @@ end
 require 'ktl/command'
 require 'ktl/cluster'
 require 'ktl/cluster_stats_task'
-require 'ktl/consumer'
 require 'ktl/decommission_plan'
-require 'ktl/kafka_client'
 require 'ktl/migration_plan'
 require 'ktl/reassigner'
 require 'ktl/reassignment_progress'
