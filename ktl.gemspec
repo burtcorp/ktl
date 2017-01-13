@@ -22,6 +22,6 @@ Gem::Specification.new do |s|
 
   s.platform = 'java'
 
-  s.add_runtime_dependency 'kafka-jars', '= 0.10.0.1.pre4'
+  s.add_runtime_dependency 'kafka-jars', '= 0.10.0.1'
   s.add_runtime_dependency 'thor', '~> 0', '< 1.0'
 end
