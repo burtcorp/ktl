@@ -9,7 +9,7 @@ module Ktl
       @logger = options[:logger] || NullLogger.new
     end
 
-    def execute
+    def execute(dryrun = false)
       if @reassigner.reassignment_in_progress?
         @logger.warn 'reassignment already in progress, exiting'
       else
@@ -22,7 +22,11 @@ module Ktl
         end
         if reassignment.size > 0
           @logger.info 'reassigning %d partitions' % reassignment.size
-          @reassigner.execute(reassignment)
+          if dryrun
+            @logger.info 'dryrun detected, skipping reassignment'
+          else
+            @reassigner.execute(reassignment)
+          end
         else
           @logger.warn 'empty reassignment, ignoring'
         end
