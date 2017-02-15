@@ -94,18 +94,6 @@ there are also some commands for managing topics, most of which merely wraps the
 `kafka-topics.sh` tool that is bundled with Kafka, but with a slightly different
 interface.
 
-The most notable difference is the `reaper` subcommand that marks topics that
-are considered empty for deletion, i.e. where all partitions of a topic have
-the same earliest and latest offset.
-The `reaper` subcommand also supports the usage of regular expressions, so to
-mark all topics matching `^test-\w+'` for deletion:
-
-```shell
-$ ktl topic reaper '^test-\w+' -z localhost:2181/test
-```
-
-The default is to remove all empty topics, so be cautious.
-
 ## Copyright
 
 © 2015 Burt AB, see LICENSE.txt (BSD 3-Clause).
