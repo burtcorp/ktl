@@ -5,6 +5,8 @@ module Ktl
     def initialize(zk_client, options = {})
       @zk_client = zk_client
       @options = options
+      @logger = options[:logger] || NullLogger.new
+      @log_plan = !!options[:log_plan]
     end
 
     def generate
@@ -26,6 +28,7 @@ module Ktl
           topic_partition = Kafka::TopicAndPartition.new(topic, partition)
           current_assignment = replica_assignments.apply(topic_partition)
           unless current_assignment == replicas
+            @logger.info "Moving #{topic_partition.topic},#{topic_partition.partition} from #{current_assignment} to #{replicas}" if @log_plan
             reassignment_plan += Scala::Tuple.new(topic_partition, replicas)
           end
         end

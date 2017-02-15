@@ -36,7 +36,7 @@ module Ktl
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
-        reassigner = Reassigner.new(zk_client, limit: options.limit)
+        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -49,6 +49,8 @@ module Ktl
     option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = if options.rack_aware
@@ -63,9 +65,11 @@ module Ktl
           brokers: options.brokers,
           blacklist: options.blacklist,
           replication_factor: options.replication_factor,
+          logger: logger,
+          log_plan: options.dryrun,
         })
-        reassigner = Reassigner.new(zk_client, limit: options.limit)
-        execute_reassignment(reassigner, plan)
+        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose)
+        execute_reassignment(reassigner, plan, options.dryrun)
       end
     end
 
@@ -80,7 +84,7 @@ module Ktl
         else
           plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         end
-        reassigner = Reassigner.new(zk_client, limit: options.limit)
+        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -97,8 +101,8 @@ module Ktl
 
     private
 
-    def execute_reassignment(reassigner, plan)
-      ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute
+    def execute_reassignment(reassigner, plan, dryrun = false)
+      ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute(dryrun)
     end
   end
 end

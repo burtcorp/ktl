@@ -7,6 +7,8 @@ module Ktl
       @limit = options[:limit]
       @overflow_path = '/ktl/overflow'
       @state_path = '/ktl/reassign'
+      @logger = options[:logger] || NullLogger.new
+      @log_assignments = !!options[:log_assignments]
     end
 
     def reassignment_in_progress?
@@ -36,6 +38,13 @@ module Ktl
     def execute(reassignment)
       reassignments = split(reassignment, @limit)
       actual_reassignment = reassignments.shift
+      if @log_assignments
+        Scala::Collection::JavaConversions.as_java_iterable(actual_reassignment).each do |pr|
+          topic_and_partition, replicas = pr.elements
+          brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
+          @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}"
+        end
+      end
       json = reassignment_json(actual_reassignment)
       @zk_client.reassign_partitions(json)
       manage_overflow(reassignments)
