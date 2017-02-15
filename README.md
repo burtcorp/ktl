@@ -94,6 +94,13 @@ there are also some commands for managing topics, most of which merely wraps the
 `kafka-topics.sh` tool that is bundled with Kafka, but with a slightly different
 interface.
 
+The most notable difference is the `create` subcommand that has the ability to create
+a consistent hashing plan and assign it to the new topic during creation.
+
+```shell
+$ ktl topic create 'some.topic' --partitions 3 --replication_factor 3 --rack_aware_allocation -z localhost:2181/test
+```
+
 ## Copyright
 
 © 2015 Burt AB, see LICENSE.txt (BSD 3-Clause).

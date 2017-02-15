@@ -33,6 +33,16 @@ module Ktl
       reassignment_plan
     end
 
+    def generate_for_new_topic(topic, partition_count)
+      brokers = select_brokers
+      nr_replicas = @options[:replication_factor] || 1
+      assignment = assign_replicas_to_brokers(topic, brokers, partition_count, nr_replicas)
+      assignment.map do |pr|
+        partition, replicas = pr.elements
+        Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
+      end
+    end
+
     private
 
     def select_brokers

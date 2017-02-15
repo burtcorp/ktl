@@ -33,20 +33,36 @@ module Ktl
     option :replication_factor, aliases: %w[-r], default: '1', desc: 'Replication factor for new topic(s)'
     option :replica_assignment, aliases: %w[-a], desc: 'Manual replica assignment'
     option :disable_rack_aware, desc: 'Disable rack awareness'
+    option :rack_aware_allocation, desc: 'Create partitions with Rack aware + Rendezvous-hashing based shuffle'
+    option :rendezvous_allocation, desc: 'Create partitions with Rendezvous-hashing based shuffle'
     option :config, aliases: %w[-c], desc: 'Key-value pairs of configuration options', type: :hash, default: {}
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def create(*names)
       with_zk_client do |zk_client|
         names.each do |name|
           opts = options.merge(create: nil, topic: name)
+          if options.rack_aware_allocation || options.rendezvous_allocation
+            plan_factory = if options.rack_aware_allocation
+              RackAwareShufflePlan
+            else
+              RendezvousShufflePlan
+            end
+
+            plan = plan_factory.new(zk_client, replication_factor: options.replication_factor.to_i)
+            zk_utils = Kafka::Utils::ZkUtils.new(nil, nil, false)
+            opts.delete(:rack_aware_allocation)
+            opts.delete(:rendezvous_allocation)
+            plan = plan.generate_for_new_topic(name, options.partitions.to_i)
+            opts[:replica_assignment] = plan.map {|broker_list| broker_list.join(':')}.join(',')
+          end
           topic_options = Kafka::Admin.to_topic_options(opts)
           silence_scala do
             Kafka::Admin::TopicCommand.create_topic(zk_client.raw_client, topic_options)
           end
-          message = %(created topic "#{name}" with #{options.partitions} partition(s))
-          message << %(, and replication factor #{options.replication_factor})
-          message << %(, with replica assignment: #{options.replica_assignment}) if options.replica_assignment
-          message << %(, with config: #{options.config}) unless options.config.empty?
+          message = %(created topic "#{name}" with #{opts[:partitions]} partition(s))
+          message << %(, and replication factor #{opts[:replication_factor]})
+          message << %(, with replica assignment: #{opts[:replica_assignment]}) if opts[:replica_assignment]
+          message << %(, with config: #{opts[:config]}) unless opts[:config].empty?
           logger.info(message)
         end
       end

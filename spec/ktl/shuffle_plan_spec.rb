@@ -158,6 +158,22 @@ module Ktl
         end
       end
     end
+
+    context 'generate_for_new_topic' do
+      let :options do
+        super.merge(replication_factor: replica_count)
+      end
+
+      it 'generates a nested list of broker ids for a new topic' do
+        assignments.each do |topic, assignment|
+          generated_plan = plan.generate_for_new_topic(topic, assignment.size)
+          expect(generated_plan.size).to eql(assignment.size)
+          generated_plan.each do |partition|
+            expect(partition.uniq.size).to eql(replica_count)
+          end
+        end
+      end
+    end
   end
 
   describe ShufflePlan do
