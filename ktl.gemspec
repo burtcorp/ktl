@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.version       = Ktl::VERSION.dup
   s.license       = 'BSD-3-Clause'
   s.authors       = ['Burt Platform Team']
-  s.email         = ['mathias@burtcorp.com']
+  s.email         = ['david@burtcorp.com']
   s.homepage      = 'http://github.com/burtcorp/ktl'
   s.summary       = %q{Management tool for Kafka clusters}
   s.description   = %q{ktl is a tool that attempts to make it easier
