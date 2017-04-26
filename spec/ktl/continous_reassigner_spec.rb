@@ -14,7 +14,15 @@ module Ktl
     end
 
     let :options do
-      {}
+      {
+        delay: 0.1,
+        log_assignments: true,
+        sleeper: sleeper,
+      }
+    end
+
+    let :sleeper do
+      double(:sleeper, sleep: nil)
     end
 
     describe '#execute' do
@@ -32,8 +40,12 @@ module Ktl
         r
       end
 
+      let :zk_utils do
+        Kafka::Utils::ZkUtils.new(nil, nil, false)
+      end
+
       let :json do
-        Kafka::Utils::ZkUtils.get_partition_reassignment_zk_data(reassignment)
+        zk_utils.format_as_reassignment_json(reassignment)
       end
 
       let :znodes do
@@ -45,28 +57,25 @@ module Ktl
           reassignments << JSON.parse(r).fetch('partitions')
         end
         allow(zk_client).to receive(:create_znode) do |path, data|
-          p [:create, :path, path]
           znodes[path] = data
         end
         allow(zk_client).to receive(:delete_znode) do |path|
-          p [:delete, :path, path]
           znodes.delete(path)
         end
         allow(zk_client).to receive(:get_children) do |path|
           matching = znodes.select { |k, v| k.start_with?(path) }
           matching = matching.keys.map { |s| s.split('/').last }
-          p [:children, path, matching]
           scala_list(matching)
         end
         allow(zk_client).to receive(:exists?) do |path|
           znodes.key?(path)
         end
         allow(zk_client).to receive(:read_data) do |path|
-          p [:read_data, path]
           [znodes[path]]
         end
         allow(zk_client).to receive(:watch_data)
         allow(zk_client).to receive(:unsubscribe_data)
+        allow(zk_client).to receive(:partitions_being_reassigned).and_return([])
       end
 
       def reassign

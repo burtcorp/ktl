@@ -206,10 +206,10 @@ describe 'bin/ktl cluster' do
     context 'when asked to wait for the reassignment to complete' do
       it 'does not exit until the reassignment has completed' do
         run_in_thread(%w[cluster shuffle --wait], zk_args) do |thread|
-          sleep 0.1 until ktl_zk.exists?('/ktl/reassign')
+          sleep 0.1 until ktl_zk.path_exists('/ktl/reassign')
           expect(fetch_json(Kafka::Utils::ZkUtils.reassign_partitions_path, 'partitions')).to_not be_empty
           expect(thread).to be_alive
-          Kafka::Utils::ZkUtils.delete_path(ktl_zk, Kafka::Utils::ZkUtils.reassign_partitions_path)
+          ktl_zk.delete_path(Kafka::Utils::ZkUtils.reassign_partitions_path)
           thread.join
           expect(thread.status).to eq(false)
         end
