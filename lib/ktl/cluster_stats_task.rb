@@ -19,7 +19,7 @@ module Ktl
       brokers.foreach do |broker|
         leader_for = ownership[broker.id]
         share = leader_for.fdiv(partitions.size.to_f) * 100
-        @shell.say '    - %d leader for %d partitions (%.2f %%)' % [broker.id, leader_for, share]
+        @shell.say '    - %s leader for %d partitions (%.2f %%)' % [broker.to_s, leader_for, share]
       end
     end
 
