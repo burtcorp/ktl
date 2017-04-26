@@ -39,7 +39,7 @@ module Ktl
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
         if options.wait?
-          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, delay: options.delay)
+          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, delay: options.delay, shell: shell)
         else
           reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
         end
@@ -77,7 +77,7 @@ module Ktl
           log_plan: options.dryrun,
         })
         if options.wait?
-          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, delay: options.delay)
+          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, delay: options.delay, shell: shell)
         else
           reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose)
         end
@@ -99,7 +99,7 @@ module Ktl
           plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         end
         if options.wait?
-          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, delay: options.delay)
+          reassigner = ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, delay: options.delay, shell: shell)
         else
           reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
         end

@@ -9,6 +9,7 @@ module Ktl
       @latch = JavaConcurrent::CountDownLatch.new(1)
       @sleeper = options[:sleeper] || java.lang.Thread
       @delay = options[:delay] || 5
+      @shell = options[:shell]
     end
 
     def execute(reassignment)
@@ -16,6 +17,8 @@ module Ktl
       @zk_client.watch_data(zk_utils.class.reassign_partitions_path, self)
       if reassignment_in_progress?
         @logger.info 'reassignment already in progress, watching for changes...'
+        progress = ReassignmentProgress.new(@zk_client, logger: @logger, verbose: true)
+        progress.display(@shell)
       else
         reassign(reassignment)
       end
