@@ -6,14 +6,13 @@ module Ktl
 
     def initialize(zk_client, options={})
       super(zk_client, options)
-      @zk_utils = Kafka::Utils::ZkUtils
       @latch = JavaConcurrent::CountDownLatch.new(1)
       @sleeper = options[:sleeper] || java.lang.Thread
     end
 
     def execute(reassignment)
       Signal.trap('SIGINT', proc { puts 'Exiting due to Ctrl-C'; @latch.count_down })
-      @zk_client.watch_data(@zk_utils.reassign_partitions_path, self)
+      @zk_client.watch_data(zk_utils.class.reassign_partitions_path, self)
       reassign(reassignment)
       @latch.await
     end
@@ -33,7 +32,7 @@ module Ktl
     def handle_data_deleted(path)
       reassignment = load_overflow
       if reassignment.empty?
-        @zk_client.unsubscribe_data(@zk_utils.reassign_partitions_path, self)
+        @zk_client.unsubscribe_data(zk_utils.class.reassign_partitions_path, self)
         delete_previous_state
         @latch.count_down
       else
