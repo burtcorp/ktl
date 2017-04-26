@@ -84,6 +84,22 @@ module Ktl
       @utils.path_exists(path)
     end
 
+    def watch_state(path, listener)
+      zk_client.subscribe_state_changes(path, listener)
+    end
+
+    def watch_data(path, listener)
+      zk_client.subscribe_data_changes(path, listener)
+    end
+
+    def watch_child(path, listener)
+      zk_client.subscribe_child_changes(path, listener)
+    end
+
+    def unsubscribe_data(path, listener)
+      zk_client.unsubscribe_data_changes(path, listener)
+    end
+
     private
 
     CONCURRENCY = 8
@@ -106,6 +122,10 @@ module Ktl
       results.reduce(result) do |acc, v|
         acc.send('++', v)
       end
+    end
+
+    def zk_client
+      @zk_client ||= @utils.class.create_zk_client(@uri, 5_000, 5_000)
     end
   end
 end

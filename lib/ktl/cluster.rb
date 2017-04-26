@@ -32,11 +32,15 @@ module Ktl
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'Broker ID of new leader'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
+    option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
+    option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def migrate_broker
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
         plan = MigrationPlan.new(zk_client, old_leader, new_leader)
-        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
+        reassigner = create_reassigner(zk_client, options)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -51,6 +55,8 @@ module Ktl
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     option :verbose, aliases: %w[-v], desc: 'Verbose output'
     option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
+    option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
+    option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = if options.rack_aware
@@ -68,7 +74,7 @@ module Ktl
           logger: logger,
           log_plan: options.dryrun,
         })
-        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose)
+        reassigner = create_reassigner(zk_client, options)
         execute_reassignment(reassigner, plan, options.dryrun)
       end
     end
@@ -77,6 +83,10 @@ module Ktl
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
+    option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
+    option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def decommission_broker(broker_id)
       with_zk_client do |zk_client|
         if options.rendezvous?
@@ -84,7 +94,7 @@ module Ktl
         else
           plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         end
-        reassigner = Reassigner.new(zk_client, limit: options.limit, logger: logger)
+        reassigner = create_reassigner(zk_client, options)
         execute_reassignment(reassigner, plan)
       end
     end
@@ -103,6 +113,14 @@ module Ktl
 
     def execute_reassignment(reassigner, plan, dryrun = false)
       ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute(dryrun)
+    end
+
+    def create_reassigner(zk_client, options)
+      if options.wait?
+        ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, delay: options.delay, shell: shell)
+      else
+        Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose)
+      end
     end
   end
 end

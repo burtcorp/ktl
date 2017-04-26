@@ -11,7 +11,12 @@ module Ktl
 
     def execute(dryrun = false)
       if @reassigner.reassignment_in_progress?
-        @logger.warn 'reassignment already in progress, exiting'
+        if @reassigner.is_a?(ContinousReassigner)
+          reassignment = @reassigner.load_overflow
+          @reassigner.execute(reassignment)
+        else
+          @logger.warn 'reassignment already in progress, exiting'
+        end
       else
         if use_overflow?
           @logger.info 'loading overflow data'
@@ -21,7 +26,11 @@ module Ktl
           reassignment = @plan.generate
         end
         if reassignment.size > 0
-          @logger.info 'reassigning %d partitions' % reassignment.size
+          if (limit = @reassigner.limit)
+            @logger.info 'reassigning %d of %d partitions' % [limit, reassignment.size]
+          else
+            @logger.info 'reassigning %d partitions' % reassignment.size
+          end
           if dryrun
             @logger.info 'dryrun detected, skipping reassignment'
           else
@@ -43,4 +52,3 @@ module Ktl
     end
   end
 end
-

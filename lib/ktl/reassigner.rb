@@ -2,6 +2,9 @@
 
 module Ktl
   class Reassigner
+
+    attr_reader :limit
+
     def initialize(zk_client, options={})
       @zk_client = zk_client
       @limit = options[:limit]
@@ -31,8 +34,9 @@ module Ktl
         data = parse_reassignment_json(overflow_json)
         overflow = overflow.send('++', data)
       end
-      delete_previous_overflow
       overflow
+    rescue ZkClient::Exception::ZkNoNodeException
+      Scala::Collection::Map.empty
     end
 
     def execute(reassignment)
@@ -73,6 +77,9 @@ module Ktl
         @zk_client.delete_znode(overflow_path(index))
       end
     rescue ZkClient::Exception::ZkNoNodeException
+      # no-op
+    rescue => e
+      puts e.backtrace.join($/)
     end
 
     def manage_overflow(reassignments)
