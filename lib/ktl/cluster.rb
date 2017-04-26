@@ -32,6 +32,8 @@ module Ktl
     option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'Broker ID of new leader'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
     option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
     option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def migrate_broker
@@ -81,6 +83,8 @@ module Ktl
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    option :verbose, aliases: %w[-v], desc: 'Verbose output'
+    option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
     option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
     option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def decommission_broker(broker_id)
