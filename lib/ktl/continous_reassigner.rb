@@ -14,7 +14,11 @@ module Ktl
     def execute(reassignment)
       Signal.trap('SIGINT', proc { puts 'Exiting due to Ctrl-C'; @latch.count_down })
       @zk_client.watch_data(zk_utils.class.reassign_partitions_path, self)
-      reassign(reassignment)
+      if reassignment_in_progress?
+        @logger.info 'reassignment already in progress, watching for changes...'
+      else
+        reassign(reassignment)
+      end
       @latch.await
     end
 

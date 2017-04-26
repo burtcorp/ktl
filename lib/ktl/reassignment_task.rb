@@ -11,7 +11,12 @@ module Ktl
 
     def execute(dryrun = false)
       if @reassigner.reassignment_in_progress?
-        @logger.warn 'reassignment already in progress, exiting'
+        if @reassigner.is_a?(ContinousReassigner)
+          reassignment = @reassigner.load_overflow
+          @reassigner.execute(reassignment)
+        else
+          @logger.warn 'reassignment already in progress, exiting'
+        end
       else
         if use_overflow?
           @logger.info 'loading overflow data'
