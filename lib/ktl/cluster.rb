@@ -28,8 +28,8 @@ module Ktl
     end
 
     desc 'migrate-broker', 'Migrate partitions from one broker to another'
-    option :from, aliases: %w[-f], type: :numeric, required: true, desc: 'Broker ID of old leader'
-    option :to, aliases: %w[-t], type: :numeric, required: true, desc: 'Broker ID of new leader'
+    option :from, aliases: %w[-f], type: :array, required: true, desc: 'Broker IDs to migrate away from'
+    option :to, aliases: %w[-t], type: :array, required: true, desc: 'Broker IDs to migrate to'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :verbose, aliases: %w[-v], desc: 'Verbose output'
@@ -38,8 +38,8 @@ module Ktl
     option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
     def migrate_broker
       with_zk_client do |zk_client|
-        old_leader, new_leader = options.values_at(:from, :to)
-        plan = MigrationPlan.new(zk_client, old_leader, new_leader, log_plan: options.verbose, logger: logger)
+        old_brokers, new_brokers = options.values_at(:from, :to)
+        plan = MigrationPlan.new(zk_client, old_brokers.map(&:to_i), new_brokers.map(&:to_i), log_plan: options.verbose, logger: logger)
         reassigner = create_reassigner(zk_client, options)
         execute_reassignment(reassigner, plan, options)
       end
