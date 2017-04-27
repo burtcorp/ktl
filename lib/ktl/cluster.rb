@@ -39,9 +39,9 @@ module Ktl
     def migrate_broker
       with_zk_client do |zk_client|
         old_leader, new_leader = options.values_at(:from, :to)
-        plan = MigrationPlan.new(zk_client, old_leader, new_leader)
+        plan = MigrationPlan.new(zk_client, old_leader, new_leader, log_plan: options.verbose, logger: logger)
         reassigner = create_reassigner(zk_client, options)
-        execute_reassignment(reassigner, plan)
+        execute_reassignment(reassigner, plan, options)
       end
     end
 
@@ -75,7 +75,7 @@ module Ktl
           log_plan: options.dryrun,
         })
         reassigner = create_reassigner(zk_client, options)
-        execute_reassignment(reassigner, plan, options.dryrun)
+        execute_reassignment(reassigner, plan, options)
       end
     end
 
@@ -95,7 +95,7 @@ module Ktl
           plan = DecommissionPlan.new(zk_client, broker_id.to_i)
         end
         reassigner = create_reassigner(zk_client, options)
-        execute_reassignment(reassigner, plan)
+        execute_reassignment(reassigner, plan, options)
       end
     end
 
@@ -111,8 +111,8 @@ module Ktl
 
     private
 
-    def execute_reassignment(reassigner, plan, dryrun = false)
-      ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute(dryrun)
+    def execute_reassignment(reassigner, plan, options)
+      ReassignmentTask.new(reassigner, plan, shell, logger: logger).execute(options.dryrun)
     end
 
     def create_reassigner(zk_client, options)
