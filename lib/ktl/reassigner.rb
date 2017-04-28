@@ -61,6 +61,10 @@ module Ktl
       Scala::Collection::JavaConversions.as_java_iterable(reassignment_candidates).each do |pr|
         topic_and_partition, replicas = pr.elements
         if step1_replicas = is_two_step_operation(topic_and_partition, replicas)
+          if step1_replicas.uniq != step1_replicas
+            raise "Multiple replicas on the same broker, this should not happen... #{step1_replicas}"
+          end
+          step1_replicas = Scala::Collection::JavaConversions.as_scala_iterable(step1_replicas)
           next_step_assignments += pr
           actual_reassignment += Scala::Tuple.new(topic_and_partition, step1_replicas)
           brokers = Scala::Collection::JavaConversions.as_java_iterable(step1_replicas).to_a
@@ -79,17 +83,17 @@ module Ktl
     end
 
     def is_two_step_operation(topic_and_partition, final_replicas)
-      replicas = Scala::Collection::JavaConversions.as_java_iterable(final_replicas).to_a
+      replicas = Scala::Collection::JavaConversions.as_java_iterable(final_replicas).to_a.uniq
       topic_list = Scala::Collection::JavaConversions.as_scala_iterable([topic_and_partition.topic])
       assignments = ScalaEnumerable.new(@zk_client.replica_assignment_for_topics(topic_list))
       assignments.each do |item|
         item_topic_partition = item.first
         if item_topic_partition.partition == topic_and_partition.partition
-          item_replicas = Scala::Collection::JavaConversions.as_java_iterable(item.last).to_a
+          item_replicas = Scala::Collection::JavaConversions.as_java_iterable(item.last).to_a.uniq
           diff_replicas = replicas - item_replicas
           unless diff_replicas.empty?
-            transition_replicas = replicas + diff_replicas
-            return Scala::Collection::JavaConversions.as_scala_iterable(transition_replicas)
+            transition_replicas = item_replicas + diff_replicas
+            return transition_replicas
           end
         end
       end
