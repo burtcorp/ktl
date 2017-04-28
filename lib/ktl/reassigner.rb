@@ -41,23 +41,33 @@ module Ktl
 
     def execute(reassignment)
       reassignments = split(reassignment, @limit)
-      actual_reassignment = reassignments.shift
-      if @log_assignments
-        Scala::Collection::JavaConversions.as_java_iterable(actual_reassignment).each do |pr|
-          topic_and_partition, replicas = pr.elements
-          brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
-          @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}"
+      reassignment_candidates = reassignments.shift
+      actual_reassignment = Scala::Collection::Map.empty
+      next_step_assignments = Scala::Collection::Map.empty
+      ScalaEnumerable.new(reassignment_candidates).each do |pr|
+        topic_and_partition, replicas = pr.elements
+        if step1_replicas = is_two_step_operation(topic_and_partition, replicas)
+          next_step_assignments += pr
+          actual_reassignment += Scala::Tuple.new(topic_partition, step1_replicas)
+        else
+          actual_reassignment += pr
         end
+        brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
+        @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}" if @log_assignments
       end
       json = reassignment_json(actual_reassignment)
       @zk_client.reassign_partitions(json)
-      manage_overflow(reassignments)
+      manage_overflow(next_step_assignments.send('++', reassignments))
       manage_progress_state(actual_reassignment)
     end
 
     private
 
     JSON_MAX_SIZE = 1024**2
+
+    def is_two_step_operation(topic_and_partition, replicas)
+      false
+    end
 
     def manage_progress_state(reassignment)
       delete_previous_state
