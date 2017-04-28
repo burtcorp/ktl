@@ -49,16 +49,5 @@ module Ktl
         reassign(reassignment)
       end
     end
-
-    private
-
-    def reassign(reassignment)
-      reassignments = split(reassignment, @limit)
-      actual_reassignment = reassignments.shift
-      json = reassignment_json(actual_reassignment)
-      @zk_client.reassign_partitions(json)
-      manage_overflow(reassignments)
-      manage_progress_state(actual_reassignment)
-    end
   end
 end
