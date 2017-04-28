@@ -69,7 +69,7 @@ module Ktl
           actual_reassignment += Scala::Tuple.new(topic_and_partition, step1_replicas)
           brokers = Scala::Collection::JavaConversions.as_java_iterable(step1_replicas).to_a
           eventual_brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
-          @logger.debug "Mirroring #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}, for eventual transition to #{eventual_brokers.join(',')}" if @log_assignments
+          @logger.debug "Mirroring #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')} for eventual transition to #{eventual_brokers.join(',')}" if @log_assignments
         else
           actual_reassignment += pr
           brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
