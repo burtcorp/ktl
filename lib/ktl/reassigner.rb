@@ -48,6 +48,12 @@ module Ktl
     JSON_MAX_SIZE = 1024**2
 
     def reassign(reassignment)
+      if (limit)
+        @logger.info 'reassigning %d of %d partitions' % [limit, reassignment.size]
+      else
+        @logger.info 'reassigning %d partitions' % reassignment.size
+      end
+
       reassignments = split(reassignment, @limit)
       reassignment_candidates = reassignments.shift
       actual_reassignment = Scala::Collection::Map.empty
@@ -59,11 +65,11 @@ module Ktl
           actual_reassignment += Scala::Tuple.new(topic_and_partition, step1_replicas)
           brokers = Scala::Collection::JavaConversions.as_java_iterable(step1_replicas).to_a
           eventual_brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
-          @logger.info "Mirroring #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}, for eventual transition to #{eventual_brokers.join(',')}" if @log_assignments
+          @logger.debug "Mirroring #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')} for eventual transition to #{eventual_brokers.join(',')}" if @log_assignments
         else
           actual_reassignment += pr
           brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
-          @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}" if @log_assignments
+          @logger.debug "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}" if @log_assignments
         end
       end
       json = reassignment_json(actual_reassignment)
