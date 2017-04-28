@@ -11,6 +11,11 @@ module Ktl
       elsif (@from_brokers + @to_brokers).uniq.length != @from_brokers.length * 2
         raise "Broker lists must be mutually exclusive. From: #{@from_brokers}, To: #{@to_brokers}"
       end
+      from_racks = from_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
+      to_racks = to_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
+      if from_racks != to_racks
+        raise "Both broker lists must have the same rack setup. From: #{from_racks}, To: #{to_racks}"
+      end
       @logger = options[:logger] || NullLogger.new
       @log_plan = !!options[:log_plan]
     end

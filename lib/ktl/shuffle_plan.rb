@@ -125,21 +125,7 @@ module Ktl
     private
 
     def rack_for(broker_id)
-      unless @rack_mappings[broker_id]
-        broker_metadata = Kafka::Admin.get_broker_metadatas(@zk_client, [broker_id]).first
-        rack = broker_metadata.rack
-        unless rack.isDefined
-          raise "Broker #{broker_metadata.id} is missing rack information, unable to create rack aware shuffle plan."
-        end
-        @rack_mappings[broker_id] = rack.get
-      end
-      @rack_mappings[broker_id]
-    rescue Java::KafkaAdmin::AdminOperationException => e
-      if e.message.match '--disable-rack-aware'
-        raise "Not all brokers have rack information. Unable to create rack aware shuffle plan."
-      else
-        raise e
-      end
+      @rack_mappings[broker_id] ||= Kafka::Admin.get_broker_rack(@zk_client, broker_id)
     end
   end
 end
