@@ -26,11 +26,6 @@ module Ktl
           reassignment = @plan.generate
         end
         if reassignment.size > 0
-          if (limit = @reassigner.limit)
-            @logger.info 'reassigning %d of %d partitions' % [limit, reassignment.size]
-          else
-            @logger.info 'reassigning %d partitions' % reassignment.size
-          end
           if dryrun
             @logger.info 'dryrun detected, skipping reassignment'
           else
