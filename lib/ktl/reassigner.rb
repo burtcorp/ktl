@@ -40,32 +40,54 @@ module Ktl
     end
 
     def execute(reassignment)
-      reassignments = split(reassignment, @limit)
-      reassignment_candidates = reassignments.shift
-      actual_reassignment = Scala::Collection::Map.empty
-      next_step_assignments = Scala::Collection::Map.empty
-      ScalaEnumerable.new(reassignment_candidates).each do |pr|
-        topic_and_partition, replicas = pr.elements
-        if step1_replicas = is_two_step_operation(topic_and_partition, replicas)
-          next_step_assignments += pr
-          actual_reassignment += Scala::Tuple.new(topic_partition, step1_replicas)
-        else
-          actual_reassignment += pr
-        end
-        brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
-        @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}" if @log_assignments
-      end
-      json = reassignment_json(actual_reassignment)
-      @zk_client.reassign_partitions(json)
-      manage_overflow(next_step_assignments.send('++', reassignments))
-      manage_progress_state(actual_reassignment)
+      reassign(reassignment)
     end
 
     private
 
     JSON_MAX_SIZE = 1024**2
 
-    def is_two_step_operation(topic_and_partition, replicas)
+    def reassign(reassignment)
+      reassignments = split(reassignment, @limit)
+      reassignment_candidates = reassignments.shift
+      actual_reassignment = Scala::Collection::Map.empty
+      next_step_assignments = Scala::Collection::Map.empty
+      Scala::Collection::JavaConversions.as_java_iterable(reassignment_candidates).each do |pr|
+        topic_and_partition, replicas = pr.elements
+        if step1_replicas = is_two_step_operation(topic_and_partition, replicas)
+          next_step_assignments += pr
+          actual_reassignment += Scala::Tuple.new(topic_and_partition, step1_replicas)
+          brokers = Scala::Collection::JavaConversions.as_java_iterable(step1_replicas).to_a
+          eventual_brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
+          @logger.info "Mirroring #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}, for eventual transition to #{eventual_brokers.join(',')}" if @log_assignments
+        else
+          actual_reassignment += pr
+          brokers = Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
+          @logger.info "Assigning #{topic_and_partition.topic},#{topic_and_partition.partition} to #{brokers.join(',')}" if @log_assignments
+        end
+      end
+      json = reassignment_json(actual_reassignment)
+      @zk_client.reassign_partitions(json)
+      manage_overflow(split(next_step_assignments, nil) + reassignments)
+      manage_progress_state(actual_reassignment)
+    end
+
+    def is_two_step_operation(topic_and_partition, final_replicas)
+      replicas = Scala::Collection::JavaConversions.as_java_iterable(final_replicas).to_a
+      topic_list = Scala::Collection::JavaConversions.as_scala_iterable([topic_and_partition.topic])
+      assignments = ScalaEnumerable.new(@zk_client.replica_assignment_for_topics(topic_list))
+      assignments.each do |item|
+        item_topic_partition = item.first
+        if item_topic_partition.partition == topic_and_partition.partition
+          item_replicas = Scala::Collection::JavaConversions.as_java_iterable(item.last).to_a
+          diff_replicas = replicas - item_replicas
+          unless diff_replicas.empty?
+            transition_replicas = replicas + diff_replicas
+            return Scala::Collection::JavaConversions.as_scala_iterable(transition_replicas)
+          end
+        end
+      end
+
       false
     end
 
