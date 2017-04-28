@@ -16,22 +16,12 @@ module Ktl
       assignments = ScalaEnumerable.new(@zk_client.replica_assignment_for_topics(topics))
       assignments.each do |item|
         topic_partition = item.first
-        replicas = Scala::Collection::JavaConversions.as_java_iterable(item.last).to_a
-        if replicas.include?(@old_replica)
-          if replicas.include?(@new_replica)
-            new_replicas = replicas.dup
-            new_replicas.delete(@old_replica)
-            @logger.info "Decreasing #{topic_partition.topic},#{topic_partition.partition} from #{replicas} to #{new_replicas}" if @log_plan
-            new_replicas = Scala::Collection::JavaConversions.as_scala_iterable(new_replicas.map {|r| r.to_java}).to_seq
-            plan += Scala::Tuple.new(topic_partition, new_replicas)
-          else
-            new_replicas = replicas.dup
-            old_replica_index = new_replicas.index(@old_replica)
-            new_replicas.insert(old_replica_index, @new_replica)
-            @logger.info "Expanding #{topic_partition.topic},#{topic_partition.partition} from #{replicas} to #{new_replicas}" if @log_plan
-            new_replicas = Scala::Collection::JavaConversions.as_scala_iterable(new_replicas.map {|r| r.to_java}).to_seq
-            plan += Scala::Tuple.new(topic_partition, new_replicas)
-          end
+        replicas = item.last
+        if replicas.contains?(@old_replica)
+          index = replicas.index_of(@old_replica)
+          new_replicas = replicas.updated(index, @new_replica, CanBuildFrom)
+          @logger.info "Moving #{topic_partition.topic},#{topic_partition.partition} from #{replicas} to #{new_replicas}" if @log_plan
+          plan += Scala::Tuple.new(topic_partition, new_replicas)
         end
       end
       plan
