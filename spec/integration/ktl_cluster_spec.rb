@@ -11,6 +11,34 @@ describe 'bin/ktl cluster' do
     fetch_json(path, 'partitions')
   end
 
+  let :final_state do
+    state = partitions.dup
+    overflow.each do |o|
+      o['partitions'].each do |partition|
+        current = state.select {|s| s['topic'] == partition['topic'] && s['partition'] == partition['partition']}.first
+        if current
+          current['replicas'] = partition['replicas']
+        else
+          state << partition
+        end
+      end
+    end
+    state
+  end
+
+  let :overflow do
+    begin
+      overflow = []
+      overflow_nodes = ktl_zk.get_children('/ktl/overflow')
+      overflow_nodes.foreach do |index|
+        overflow << JSON.parse(ktl_zk.read_data("/ktl/overflow/#{index}").first)
+      end
+      overflow
+    rescue ZkClient::Exception::ZkNoNodeException
+      []
+    end
+  end
+
   before do
     register_broker(0)
   end
@@ -54,7 +82,7 @@ describe 'bin/ktl cluster' do
         end
 
         it 'uses the overflow data' do
-          expect(partitions).to match [
+          expect(final_state).to match [
             a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1])
           ]
         end
@@ -66,7 +94,7 @@ describe 'bin/ktl cluster' do
         end
 
         it 'does not use the overflow data' do
-          expect(partitions).to contain_exactly(*reassigned_partitions)
+          expect(final_state).to contain_exactly(*reassigned_partitions)
         end
       end
     end
@@ -80,7 +108,7 @@ describe 'bin/ktl cluster' do
 
       it 'writes the reassignment json to a `reassign` state prefix' do
         partitions = fetch_json('/ktl/reassign', 'partitions')
-        expect(partitions).to contain_exactly(*reassigned_partitions)
+        expect(final_state).to contain_exactly(*reassigned_partitions)
       end
     end
   end
@@ -104,14 +132,13 @@ describe 'bin/ktl cluster' do
     before do
       %w[topic1 topic2].each do |topic|
         create_topic(topic)
-        create_partitions(topic, isr: [0, 1])
       end
-      register_broker(1)
+      register_broker(1, 'rack0')
     end
 
     it 'kick-starts a reassignment command for migrating partitions' do
       silence { run(%w[cluster migrate-broker], command_args + zk_args) }
-      expect(partitions).to contain_exactly(*reassigned_partitions)
+      expect(final_state).to contain_exactly(*reassigned_partitions)
     end
 
     include_examples 'overflow znodes'
@@ -134,7 +161,7 @@ describe 'bin/ktl cluster' do
 
     it 'kick-starts a preferred replica command' do
       silence { run(%w[cluster preferred-replica], zk_args) }
-      expect(partitions).to contain_exactly(
+      expect(final_state).to contain_exactly(
         a_hash_including('topic' => 'topic1', 'partition' => 0),
         a_hash_including('topic' => 'topic2', 'partition' => 0)
       )
@@ -143,10 +170,10 @@ describe 'bin/ktl cluster' do
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         silence { run(%w[cluster preferred-replica ^topic1$], zk_args) }
-        expect(partitions).to match [
+        expect(final_state).to match [
           a_hash_including('topic' => 'topic1', 'partition' => 0)
         ]
-        expect(partitions).to_not match [
+        expect(final_state).to_not match [
           a_hash_including('topic' => 'topic2', 'partition' => 0)
         ]
       end
@@ -173,13 +200,13 @@ describe 'bin/ktl cluster' do
 
     it 'kick-starts a partition reassignment command' do
       silence { run(%w[cluster shuffle], zk_args) }
-      expect(partitions).to_not be_empty
+      expect(final_state).to_not be_empty
     end
 
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         silence { run(%w[cluster shuffle ^topic1$], zk_args) }
-        expect(partitions).to match [
+        expect(final_state).to match [
           a_hash_including('topic' => 'topic1')
         ]
       end
@@ -188,7 +215,7 @@ describe 'bin/ktl cluster' do
     context 'when using rendezvous hashing' do
       it 'kick-starts a partition reassignment command' do
         silence { run(%w[cluster shuffle --rendezvous], zk_args) }
-        expect(partitions).to_not be_empty
+        expect(final_state).to_not be_empty
       end
     end
 
@@ -199,7 +226,7 @@ describe 'bin/ktl cluster' do
           replicas = partition['replicas']
           expect(replicas.size).to eq(1)
         end
-        expect(partitions).to_not be_empty
+        expect(final_state).to_not be_empty
       end
     end
 
@@ -246,7 +273,7 @@ describe 'bin/ktl cluster' do
 
     it 'kick-starts a partition reassignment command' do
       silence { run(%w[cluster decommission-broker], command_args + zk_args) }
-      expect(partitions).to contain_exactly(*reassigned_partitions)
+      expect(final_state).to contain_exactly(*reassigned_partitions)
     end
 
     include_examples 'overflow znodes'

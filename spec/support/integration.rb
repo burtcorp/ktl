@@ -35,14 +35,15 @@ shared_context 'integration setup' do
     key ? d[key] : d
   end
 
-  def register_broker(id, name='localhost')
+  def register_broker(id, rack = nil)
+    rack ||= "rack#{id}"
     endpoint_tuple = Scala::Tuple.new(
       Kafka::Protocol::SecurityProtocol.for_name('PLAINTEXT'),
-      Kafka::Cluster::EndPoint.create_end_point("PLAINTEXT://#{name}:9092")
+      Kafka::Cluster::EndPoint.create_end_point("PLAINTEXT://localhost:9092")
     )
     endpoints = Scala::Collection::Map.empty
     endpoints += endpoint_tuple
-    ktl_zk.register_broker_in_zk(id, name, 9092, endpoints, 57476, Scala::Option["rack#{id}"], Kafka::Api::ApiVersion.apply('0.10.0.1'))
+    ktl_zk.register_broker_in_zk(id, "localhost", 9092, endpoints, 57476, Scala::Option[rack], Kafka::Api::ApiVersion.apply('0.10.0.1'))
   end
 
   def clear_zk_chroot
