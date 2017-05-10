@@ -6,19 +6,19 @@ require 'spec_helper'
 module Ktl
   describe MigrationPlan do
     let :plan do
-      described_class.new(zk_client, old_leader, new_leader).generate
+      described_class.new(zk_client, old_leaders, new_leaders).generate
     end
 
     let :zk_client do
       double(:zk_client)
     end
 
-    let :old_leader do
-      0
+    let :old_leaders do
+      [0]
     end
 
-    let :new_leader do
-      1
+    let :new_leaders do
+      [1]
     end
 
     let :assignment do
@@ -33,6 +33,7 @@ module Ktl
         topics = scala_list(%w[test-topic-1])
         allow(zk_client).to receive(:all_topics).and_return(topics)
         allow(zk_client).to receive(:replica_assignment_for_topics).with(topics).and_return(assignment)
+        allow(Kafka::Admin).to receive(:get_broker_rack).and_return('rack')
       end
 
       it 'returns an object with topic-partitions <-> new AR mappings' do

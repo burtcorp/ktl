@@ -10,7 +10,7 @@ module Ktl
     end
 
     let :zk_client do
-      double(:zk_client)
+      double(:zk_client, replica_assignment_for_topics: Scala::Collection::Map.empty)
     end
 
     let :options do
