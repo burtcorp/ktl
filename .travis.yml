@@ -3,16 +3,7 @@ sudo: false
 cache: bundler
 bundler_args: --without development
 rvm:
-- jruby
+- jruby-1.7
 env:
   - JRUBY_OPTS="$JRUBY_OPTS -Xcli.debug=true --debug -J-Xms512m -J-Xmx512m"
-before_install:
-  - password=`openssl rsautl -decrypt -inkey ~/.ssh/id_rsa -in config/travis/secret.rsaenc`
-  - openssl aes-256-cbc -k "$password" -in config/travis/burtbot-travis-id_rsa.aes256enc -d -a -out id_private
-  - ssh-add -D
-  - chmod 600 id_private
-  - ssh-add ./id_private
 script: bundle exec rspec
-notifications:
-  slack:
-    secure: "P2uykNsThnTc7wKL4Op4ZS3csREePD1GR7TywWXn9XRTenjqFfGP+OgEsXTL43O90P78dhgXXNtjAgm9zdXsRS1m64A3bY8j4PNQrAi3/WdVEiuYI5iA8kStRWMJScIkzr9+xjAEEstT8mlirkui/tBKOg0iZlvv7jxA6iZ+3+o="
