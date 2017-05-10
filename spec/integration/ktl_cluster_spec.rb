@@ -26,7 +26,7 @@ describe 'bin/ktl cluster' do
       expect(output).to include('Cluster status:')
       expect(output).to include('topics: 1 (2 partitions)')
       expect(output).to include('brokers: 1')
-      expect(output).to include('- 0 leader for 2 partitions (100.00 %)')
+      expect(output).to include('- 0 : (EndPoint(localhost,9092,PLAINTEXT)) : rack0 leader for 2 partitions (100.00 %)')
     end
   end
 
