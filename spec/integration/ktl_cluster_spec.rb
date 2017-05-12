@@ -129,6 +129,13 @@ describe 'bin/ktl cluster' do
       ]
     end
 
+    let :duplicated_partitions do
+      [
+        a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [0, 1]),
+        a_hash_including('topic' => 'topic2', 'partition' => 0, 'replicas' => [0, 1]),
+      ]
+    end
+
     before do
       %w[topic1 topic2].each do |topic|
         create_topic(topic)
@@ -139,6 +146,11 @@ describe 'bin/ktl cluster' do
     it 'kick-starts a reassignment command for migrating partitions' do
       silence { run(%w[cluster migrate-broker], command_args + zk_args) }
       expect(final_state).to contain_exactly(*reassigned_partitions)
+    end
+
+    it 'duplicates the migrating broker in the first step' do
+      silence { run(%w[cluster migrate-broker], command_args + zk_args) }
+      expect(partitions).to contain_exactly(*duplicated_partitions)
     end
 
     include_examples 'overflow znodes'
