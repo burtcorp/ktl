@@ -7,14 +7,14 @@ module Ktl
       @from_brokers = from_brokers
       @to_brokers = to_brokers
       if @from_brokers.length != @to_brokers.length
-        raise "Both brokers lists must be of equal length. From: #{@from_brokers}, To: #{@to_brokers}"
+        raise ArgumentError, "Both brokers lists must be of equal length. From: #{@from_brokers}, To: #{@to_brokers}"
       elsif !(@from_brokers & @to_brokers).empty?
-        raise "Broker lists must be mutually exclusive. From: #{@from_brokers}, To: #{@to_brokers}"
+        raise ArgumentError, "Broker lists must be mutually exclusive. From: #{@from_brokers}, To: #{@to_brokers}"
       end
       from_racks = from_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
       to_racks = to_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
       if from_racks != to_racks
-        raise "Both broker lists must have the same rack setup. From: #{from_racks}, To: #{to_racks}"
+        raise ArgumentError, "Both broker lists must have the same rack setup. From: #{from_racks}, To: #{to_racks}"
       end
       @logger = options[:logger] || NullLogger.new
       @log_plan = !!options[:log_plan]

@@ -6,18 +6,18 @@ require 'spec_helper'
 module Ktl
   describe MigrationPlan do
     let :plan do
-      described_class.new(zk_client, old_leaders, new_leaders).generate
+      described_class.new(zk_client, old_brokers, new_brokers).generate
     end
 
     let :zk_client do
       double(:zk_client)
     end
 
-    let :old_leaders do
+    let :old_brokers do
       [0]
     end
 
-    let :new_leaders do
+    let :new_brokers do
       [1]
     end
 
@@ -55,6 +55,29 @@ module Ktl
       it 'skips topic-partitions that are not owned by `old_leader`' do
         not_owned = Kafka::TopicAndPartition.new('test-topic-1', to_int(1))
         expect(plan.contains?(not_owned)).to be false
+      end
+    end
+
+    describe '#initialize' do
+      it 'raises an exception when broker lists are different length' do
+        expect { described_class.new(zk_client, [0], [1, 2]) }.to raise_error(ArgumentError, /must be of equal length/)
+      end
+
+      it 'raises an exception when broker lists are not mutually exclusive' do
+        expect { described_class.new(zk_client, [0, 1], [1, 2]) }.to raise_error(ArgumentError, /must be mutually exclusive/)
+      end
+
+      context 'with rack assignment' do
+        before do
+          allow(Kafka::Admin).to receive(:get_broker_rack).with(anything, 0).and_return('rack0')
+          allow(Kafka::Admin).to receive(:get_broker_rack).with(anything, 1).and_return('rack1')
+          allow(Kafka::Admin).to receive(:get_broker_rack).with(anything, 2).and_return('rack0')
+          allow(Kafka::Admin).to receive(:get_broker_rack).with(anything, 3).and_return('rack2')
+        end
+
+        it 'raises an exception if replacement brokers don\'t have matching rack assignments' do
+          expect { described_class.new(zk_client, [0, 1], [2, 3]) }.to raise_error(ArgumentError, /must have the same rack setup/)
+        end
       end
     end
   end
