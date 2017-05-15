@@ -82,9 +82,7 @@ describe 'bin/ktl cluster' do
         end
 
         it 'uses the overflow data' do
-          expect(final_state).to match [
-            a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1])
-          ]
+          expect(final_state).to include(a_hash_including('topic' => 'topic1', 'partition' => 0, 'replicas' => [1]))
         end
       end
 
@@ -182,12 +180,8 @@ describe 'bin/ktl cluster' do
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         silence { run(%w[cluster preferred-replica ^topic1$], zk_args) }
-        expect(final_state).to match [
-          a_hash_including('topic' => 'topic1', 'partition' => 0)
-        ]
-        expect(final_state).to_not match [
-          a_hash_including('topic' => 'topic2', 'partition' => 0)
-        ]
+        expect(final_state).to include(a_hash_including('topic' => 'topic1', 'partition' => 0))
+        expect(final_state).to_not include(a_hash_including('topic' => 'topic2', 'partition' => 0))
       end
     end
 
@@ -218,9 +212,7 @@ describe 'bin/ktl cluster' do
     context 'when given a topic regexp' do
       it 'only includes matched topics' do
         silence { run(%w[cluster shuffle ^topic1$], zk_args) }
-        expect(final_state).to match [
-          a_hash_including('topic' => 'topic1')
-        ]
+        expect(final_state).to include(a_hash_including('topic' => 'topic1'))
       end
     end
 

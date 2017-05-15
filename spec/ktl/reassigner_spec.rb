@@ -29,7 +29,7 @@ module Ktl
       context 'if there\'s a reassignment in progress' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          2.times.map do |partition|
+          2.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -92,7 +92,7 @@ module Ktl
     describe '#load_overflow' do
       let :overflow_part_1 do
         r = Scala::Collection::Map.empty
-        2.times.map do |partition|
+        2.times.each do |partition|
           topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
@@ -102,7 +102,7 @@ module Ktl
 
       let :overflow_part_2 do
         r = Scala::Collection::Map.empty
-        2.times.map do |partition|
+        2.times.each do |partition|
           topic_partition = Kafka::TopicAndPartition.new('topic2', partition)
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
@@ -159,7 +159,7 @@ module Ktl
       context 'when the reassignment is less than 1MB' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          10.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -246,7 +246,7 @@ module Ktl
 
         let :reassignment do
           r = Scala::Collection::Map.empty
-          100.times.map do |partition|
+          100.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -284,7 +284,7 @@ module Ktl
       context 'with a current assignment' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          10.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -294,7 +294,7 @@ module Ktl
 
         let :current_assignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          10.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -304,7 +304,7 @@ module Ktl
 
         let :duplicated_reassignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          10.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)

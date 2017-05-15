@@ -134,12 +134,12 @@ module Kafka
     def self.get_broker_rack(zk_client, broker_id)
       broker_metadata = Kafka::Admin.get_broker_metadatas(zk_client, [broker_id]).first
       rack = broker_metadata.rack
-      unless rack.isDefined
+      unless rack.defined?
         raise "Broker #{broker_metadata.id} is missing rack information, unable to create rack aware shuffle plan."
       end
       rack.get
     rescue Java::KafkaAdmin::AdminOperationException => e
-      if e.message.match '--disable-rack-aware'
+      if e.message.include? '--disable-rack-aware'
         raise "Not all brokers have rack information. Unable to create rack aware shuffle plan."
       else
         raise e
