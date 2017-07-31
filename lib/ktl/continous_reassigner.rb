@@ -29,7 +29,7 @@ module Ktl
       parsed_data = JSON.parse(data)
       if (partitions = parsed_data['partitions'])
         partitions = partitions.map { |r| r.values_at('topic', 'partition').join(':') }
-        @logger.info sprintf('%d partitions left to reassign (%p)', partitions.size, partitions)
+        @logger.debug sprintf('%d partitions left to reassign (%p)', partitions.size, partitions.size <= 5 ? partitions : '...')
       else
         @logger.info sprintf('Data without `partitions` key: %p', parsed_data)
       end
@@ -48,17 +48,6 @@ module Ktl
         @sleeper.sleep(@delay * 1000)
         reassign(reassignment)
       end
-    end
-
-    private
-
-    def reassign(reassignment)
-      reassignments = split(reassignment, @limit)
-      actual_reassignment = reassignments.shift
-      json = reassignment_json(actual_reassignment)
-      @zk_client.reassign_partitions(json)
-      manage_overflow(reassignments)
-      manage_progress_state(actual_reassignment)
     end
   end
 end

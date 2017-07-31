@@ -10,7 +10,7 @@ module Ktl
     end
 
     let :zk_client do
-      double(:zk_client)
+      double(:zk_client, replica_assignment_for_topics: Scala::Collection::Map.empty)
     end
 
     let :zk_utils do
@@ -29,7 +29,7 @@ module Ktl
       context 'if there\'s a reassignment in progress' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          2.times.map do |partition|
+          2.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -92,7 +92,7 @@ module Ktl
     describe '#load_overflow' do
       let :overflow_part_1 do
         r = Scala::Collection::Map.empty
-        2.times.map do |partition|
+        2.times.each do |partition|
           topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
@@ -102,7 +102,7 @@ module Ktl
 
       let :overflow_part_2 do
         r = Scala::Collection::Map.empty
-        2.times.map do |partition|
+        2.times.each do |partition|
           topic_partition = Kafka::TopicAndPartition.new('topic2', partition)
           replicas = scala_int_list([0, 1, 2])
           r += Scala::Tuple.new(topic_partition, replicas)
@@ -159,7 +159,7 @@ module Ktl
       context 'when the reassignment is less than 1MB' do
         let :reassignment do
           r = Scala::Collection::Map.empty
-          10.times.map do |partition|
+          10.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -246,7 +246,7 @@ module Ktl
 
         let :reassignment do
           r = Scala::Collection::Map.empty
-          100.times.map do |partition|
+          100.times.each do |partition|
             topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
             replicas = scala_int_list([0, 1, 2])
             r += Scala::Tuple.new(topic_partition, replicas)
@@ -278,6 +278,60 @@ module Ktl
             acc.send('++', data)
           end
           expect(reassigned.size).to eq(20)
+        end
+      end
+
+      context 'with a current assignment' do
+        let :reassignment do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 2])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        let :current_assignment do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        let :duplicated_reassignment do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        before do
+          allow(zk_client).to receive(:replica_assignment_for_topics).and_return(current_assignment)
+        end
+
+        let :final_json do
+          zk_utils.format_as_reassignment_json(reassignment)
+        end
+
+        let :duplicated_json do
+          zk_utils.format_as_reassignment_json(duplicated_reassignment)
+        end
+
+        it 'creates a reassignment that duplicates partitions that are being reassigned' do
+          reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:reassign_partitions).with(duplicated_json)
+        end
+
+        it 'creates an overflow that removes the reassigned broker from the duplicated partitions' do
+          reassigner.execute(reassignment)
+          expect(zk_client).to have_received(:create_znode).with('/ktl/overflow/0', final_json)
         end
       end
     end

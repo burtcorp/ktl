@@ -239,7 +239,7 @@ module Ktl
         index = broker_id % 10
         double("broker_#{index}", id: broker_id).tap do |broker|
           rack_name = "rack-#{index}"
-          rack = double(rack_name, isDefined: true, get: rack_name)
+          rack = double(rack_name, defined?: true, get: rack_name)
           allow(broker).to receive(:rack).and_return(rack)
         end
       end
@@ -317,7 +317,7 @@ module Ktl
 
         it 'raises exception if broker is missing rack configuration' do
           broker_metadata = generate_broker_metadata(203)
-          allow(broker_metadata.rack).to receive(:isDefined).and_return(false)
+          allow(broker_metadata.rack).to receive(:defined?).and_return(false)
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
         end
       end
