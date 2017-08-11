@@ -378,6 +378,50 @@ module Ktl
           expect { plan.generate }.to raise_error(RuntimeError, /Broker 101 is missing rack information/)
         end
       end
+
+      context 'with a large amount of brokers, topics and partitions' do
+        let :topics do
+          100
+        end
+        let :partitions do
+          30
+        end
+        let :assignments do
+          assignments = {}
+          topics.times do |topic|
+            assignments["topic#{topic}"] = partitions.times.map {|partition| [1]}
+          end
+          assignments
+        end
+
+        let :broker_count do
+          18
+        end
+        let :brokers do
+          broker_count.times.map do |broker|
+            ((broker / replica_count) + 1) * 100 + (broker % replica_count)
+          end
+        end
+
+        let :replica_count do
+          3
+        end
+
+        let :options do
+          {
+            replication_factor: replica_count
+          }
+        end
+
+        it 'distributes leadership evenly' do
+          leader_count = Hash.new(0)
+          replica_count = Hash.new(0)
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            leader_count[brokers.first] += 1
+          end
+          expect(leader_count.values.max).to be < 170
+        end
+      end
     end
   end
 end

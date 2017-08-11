@@ -91,6 +91,7 @@ module Ktl
     def initialize(*args)
       super
       @rack_mappings = {}
+      @leader_count = Hash.new(0)
     end
 
     def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count)
@@ -118,10 +119,13 @@ module Ktl
         end
         selected = rack_sorted_brokers.map do |rack_brokers|
           rack_selected_broker = rack_brokers.select {|broker| broker_count[broker] < max_partitions_per_broker}.first
+        end.sort_by do |broker_id|
+          @leader_count[broker_id]
         end
         selected.each do |allocated_broker|
           broker_count[allocated_broker] += 1
         end
+        @leader_count[selected.first] += 1
         if selected.compact.length != replica_count
           raise ArgumentError, "Unable to find enough available brokers "
         end
