@@ -103,22 +103,28 @@ module Ktl
         acc[rack] ||= []
         acc[rack] << broker
       end
+      broker_count = Hash.new(0)
+      max_partitions_per_broker = ((partition_count * replica_count) / brokers.size.to_f).ceil
       partition_count.times do |partition|
-        first_sorted = racks.flat_map do |rack, rack_brokers|
-          hashed_brokers = rack_brokers.map do |broker|
+        rack_order = racks.keys.dup
+        shift_leader_count = (partition % rack_order.length)
+        move_leaders = rack_order.push(*rack_order.shift(shift_leader_count))
+        rack_order = rack_order.take(replica_count)
+        rack_sorted_brokers = rack_order.map do |rack|
+          racks[rack].sort_by do |broker|
             key = [partition, topic, broker].pack('l<a*l<')
-            {id: broker, hash: Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)}
-          end.sort_by do |broker|
-            broker[:hash]
-          end
-          hashed_brokers.each_with_index do |broker, index|
-            broker[:index] = index
+            Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)
           end
         end
-        sorted = first_sorted.sort_by do |broker|
-          [broker[:index], broker[:hash], broker[:id]]
+        selected = rack_sorted_brokers.map do |rack_brokers|
+          rack_selected_broker = rack_brokers.select {|broker| broker_count[broker] < max_partitions_per_broker}.first
         end
-        selected = sorted.take(replica_count).map {|broker| broker[:id]}
+        selected.each do |allocated_broker|
+          broker_count[allocated_broker] += 1
+        end
+        if selected.compact.length != replica_count
+          raise ArgumentError, "Unable to find enough available brokers "
+        end
         result.push(Scala::Tuple.new(partition, Scala::Collection::JavaConversions.as_scala_iterable(selected).to_list))
       end
       result

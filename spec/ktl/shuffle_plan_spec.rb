@@ -302,12 +302,26 @@ module Ktl
       end
 
       context 'with multiple brokers per rack' do
+        let :assignments do
+          {
+            'topic1' => [[301], [302], [303]],
+            'topic2' => [[301], [302], [303]],
+            'topic3' => [[301], [302], [303]],
+          }
+        end
+
         let :brokers do
           [201, 202, 203, 101, 102, 103]
         end
 
         let :replica_count do
           3
+        end
+
+        let :options do
+          {
+            replication_factor: replica_count
+          }
         end
 
         it 'chooses one broker per rack' do
@@ -321,6 +335,32 @@ module Ktl
           broker_metadata = generate_broker_metadata(203)
           allow(broker_metadata.rack).to receive(:defined?).and_return(false)
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
+        end
+
+        it 'distributes each topic evenly' do
+          result = Hash.new { |hash, key| hash[key] = Hash.new(0) }
+          plan.generate.foreach do |tuple|
+            key = tuple.first
+            value = tuple.last
+            ScalaEnumerable.new(value).to_a.each do |broker|
+              result[key.topic][broker] += 1
+            end
+          end
+          result.each do |topic, broker_counts|
+            expect(broker_counts.keys.length).to eql(brokers.length)
+            expect(broker_counts.values.max).to eql(2)
+          end
+        end
+
+        it 'distributes the leaders evenly across racks' do
+          leaders = Hash.new { |hash, key| hash[key] = Hash.new(0) }
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            leaders[topic][generate_broker_metadata(brokers.first).rack.get] += 1
+          end
+          leaders.each do |topic, rack_leadership|
+            expect(rack_leadership.keys.length).to eql(3)
+            expect(rack_leadership.values).to eql([1, 1, 1])
+          end
         end
       end
 
