@@ -97,28 +97,17 @@ module Ktl
 
         assignments = []
         assignments << ['Current', zk_client.replica_assignment_for_topics(topics)]
-
-        plan = ShufflePlan.new(zk_client, {
-          filter: Regexp.new(regexp),
-          brokers: options.brokers,
-          blacklist: options.blacklist,
-          replication_factor: options.replication_factor,
-          logger: logger,
-          log_plan: options.dryrun,
-        })
-        assignments << ['Random', plan.generate(true)]
-
-        plan = RackAwareShufflePlan.new(zk_client, {
-          filter: Regexp.new(regexp),
-          brokers: options.brokers,
-          blacklist: options.blacklist,
-          replication_factor: options.replication_factor,
-          logger: logger,
-          log_plan: options.dryrun,
-        })
-
-        assignments << ['Bound', plan.generate(true)]
-        # current_replica_assignments = zk_client.replica_assignment_for_topics(topics)
+        [ShufflePlan, RackAwareShufflePlan, BoundedLoadShufflePlan].each do |plan_factory|
+          plan = plan_factory.new(zk_client, {
+            filter: Regexp.new(regexp),
+            brokers: options.brokers,
+            blacklist: options.blacklist,
+            replication_factor: options.replication_factor,
+            logger: logger,
+            log_plan: options.dryrun,
+          })
+          assignments << [plan_factory.name, plan.generate(true)]
+        end
 
         topics_partitions = ScalaEnumerable.new(zk_client.partitions_for_topics(topics))
         topics_partitions = topics_partitions.sort_by(&:first)
