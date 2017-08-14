@@ -81,6 +81,93 @@ module Ktl
       end
     end
 
+    desc 'calculate-load [REGEXP]', 'Create shuffle plan and calculate projected load per broker'
+    option :brokers, type: :array, desc: 'Broker IDs'
+    option :blacklist, type: :array, desc: 'Broker IDs to exclude'
+    option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
+    option :rack_aware, aliases: %w[-a], type: :boolean, desc: 'Whether to use Rack aware + Rendezvous-hashing based shuffle'
+    option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
+    option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
+    def calculate_load(regexp='.*')
+      require 'kafka/clients'
+      with_zk_client do |zk_client|
+        plan_factory = if options.rack_aware
+          RackAwareShufflePlan
+        elsif options.rendezvous
+          RendezvousShufflePlan
+        else
+          nil
+        end
+        topics = zk_client.all_topics
+        topics = topics.filter { |t| !!t.match(Regexp.new(regexp)) }
+
+        if plan_factory
+          plan = plan_factory.new(zk_client, {
+            filter: Regexp.new(regexp),
+            brokers: options.brokers,
+            blacklist: options.blacklist,
+            replication_factor: options.replication_factor,
+            logger: logger,
+            log_plan: options.dryrun,
+          })
+          planned_replica_assignments = plan.generate(true)
+        else
+          current_replica_assignments = zk_client.replica_assignment_for_topics(topics)
+        end
+
+        topics_partitions = ScalaEnumerable.new(zk_client.partitions_for_topics(topics))
+        topics_partitions = topics_partitions.sort_by(&:first)
+
+        bootstrap_servers = []
+        brokers = ScalaEnumerable.new(zk_client.utils.get_all_brokers_in_cluster).to_a
+        brokers.each do |broker|
+          endpoints = ScalaEnumerable.new(broker.end_points).to_a
+          endpoints.each do |tuple|
+            endpoint = tuple.last
+            bootstrap_servers << "#{endpoint.host}:#{endpoint.port}"
+          end
+        end
+
+        prop = {:group_id => 'ktl', :bootstrap_servers => bootstrap_servers}
+        consumer = Kafka::Clients::Consumer.new(prop)
+
+        
+        leader_load = Hash.new(0)
+        leader_count = Hash.new(0)
+        replica_load = Hash.new(0)
+        replica_count = Hash.new(0)
+
+        topics_partitions.each do |tp|
+          topic, partitions = tp.elements
+          $stderr.puts "Processing #{topic}, #{partitions.size} partitions"
+          next if topic == '__consumer_offsets'
+          partitions.size.times do |partition|
+            partition_assignment = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, partition))
+            tp = Kafka::Clients::TopicPartition.new(topic, partition)
+            consumer.assign([tp])
+            last = consumer.position(tp)
+            consumer.seek_to_beginning([tp])
+            first = consumer.position(tp)
+            assignments = Scala::Collection::JavaConversions.as_java_iterable(partition_assignment).to_a
+            leader = assignments.shift
+            partition_size = (last-first)
+            leader_load[leader] += partition_size
+            leader_count[leader] += 1
+            assignments.each do |replica|
+              replica_load[leader] += partition_size
+              replica_count[leader] += 1
+            end
+          end
+        end
+
+        leader_load.keys.sort.each do |broker|
+          puts [broker, leader_load[broker], leader_count[broker], replica_load[broker], replica_count[broker]].join(";")
+        end
+          # p 'sup'
+      end
+    end
+
+
     desc 'decommission-broker BROKER_ID', 'Decommission a broker'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing'

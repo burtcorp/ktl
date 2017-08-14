@@ -89,6 +89,10 @@ module Kafka
     include_package 'kafka.cluster'
   end
 
+  module Consumer
+    include_package 'kafka.clients.consumer'
+  end
+
   module Admin
     include_package 'kafka.admin'
 
