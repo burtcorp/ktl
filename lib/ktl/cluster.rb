@@ -97,7 +97,8 @@ module Ktl
 
         assignments = []
         assignments << ['Current', zk_client.replica_assignment_for_topics(topics)]
-        [ShufflePlan, RackAwareShufflePlan, BoundedLoadShufflePlan].each do |plan_factory|
+        plans = [ShufflePlan, RackAwareShufflePlan, BoundedLoadShufflePlan, MinimalMovementShufflePlan]
+        plans.each do |plan_factory|
           plan = plan_factory.new(zk_client, {
             filter: Regexp.new(regexp),
             brokers: options.brokers,
@@ -106,6 +107,7 @@ module Ktl
             logger: logger,
             log_plan: options.dryrun,
           })
+          $stderr.puts "Generating #{plan_factory.name}"
           assignments << [plan_factory.name, plan.generate(true)]
         end
 
@@ -114,18 +116,20 @@ module Ktl
 
         bootstrap_servers = []
         brokers = ScalaEnumerable.new(zk_client.utils.get_all_brokers_in_cluster).to_a
+        rack_mappings = {}
         brokers.each do |broker|
           endpoints = ScalaEnumerable.new(broker.end_points).to_a
           endpoints.each do |tuple|
             endpoint = tuple.last
             bootstrap_servers << "#{endpoint.host}:#{endpoint.port}"
           end
+          rack_mappings[broker.id] = Kafka::Admin.get_broker_rack(zk_client, broker.id)
         end
 
         prop = {:group_id => 'ktl', :bootstrap_servers => bootstrap_servers}
         consumer = Kafka::Clients::Consumer.new(prop)
         partition_sizes = {}
-        cache_file = '.ktl.partition.cache.' + Digest::MD5.hexdigest("#{options.zookeeper}.#{regexp}")
+        cache_file = '.ktl.partition.cache.' + Digest::MD5.hexdigest("#{options.zookeeper}")
         if File.exists?(cache_file)
           begin
             cached_data = JSON.parse(File.read(cache_file))
@@ -135,45 +139,64 @@ module Ktl
             $stderr.puts "Read #{cached_data.keys.size} partitions from #{cache_file}"
           rescue JSON::ParserError => e
           end
+        else
+          $stderr.puts "No such cache file: #{cache_file}"
         end
+
 
         assignments.each do |(header, replica_assignments)|
           puts header
           leader_load = Hash.new(0)
           leader_count = Hash.new(0)
-          replica_load = Hash.new(0)
-          replica_count = Hash.new(0)
+          total_load = Hash.new(0)
+          total_count = Hash.new(0)
+          rack_leader_load = Hash.new(0)
+          rack_leader_count = Hash.new(0)
+          rack_total_load = Hash.new(0)
+          rack_total_count = Hash.new(0)
 
           topics_partitions.each do |tp|
             topic, partitions = tp.elements
             next if topic == '__consumer_offsets'
-            # $stderr.puts "Processing #{topic}, #{partitions.size} partitions"
+            $stderr.puts "Processing #{topic}" unless partition_sizes.has_key?("#{topic}:0")
+            lookup = false
             partitions.size.times do |partition|
               partition_assignment = Scala::Collection::JavaConversions.as_java_iterable(replica_assignments.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
               partition_size = partition_sizes["#{topic}:#{partition}"] ||= begin
-                $stderr.puts "Looking up #{topic}:#{partition}"
+                lookup = true
                 tp = Kafka::Clients::TopicPartition.new(topic, partition)
                 consumer.assign([tp])
                 last = consumer.position(tp)
                 consumer.seek_to_beginning([tp])
                 first = consumer.position(tp)
-                # p [topic, partition, last, first]
                 last - first
               end
 
-              leader = partition_assignment.shift
+              leader = partition_assignment.first
               leader_load[leader] += partition_size
               leader_count[leader] += 1
+              rack_leader_load[rack_mappings[leader]] += partition_size
+              rack_leader_count[rack_mappings[leader]] += 1
               partition_assignment.each do |replica|
-                replica_load[leader] += partition_size
-                replica_count[leader] += 1
+                total_load[replica] += partition_size
+                total_count[replica] += 1
+                rack_total_load[rack_mappings[replica]] += partition_size
+                rack_total_count[rack_mappings[replica]] += 1
               end
             end
+            File.open(cache_file, 'w') do |f|
+              f.puts JSON.dump(partition_sizes)
+            end if lookup
           end
 
           leader_load.keys.sort.each do |broker|
-            puts [broker, leader_load[broker], leader_count[broker], replica_load[broker], replica_count[broker]].join(";")
+            puts [broker, leader_load[broker], leader_count[broker], total_load[broker], total_count[broker]].join("\t")
           end
+          rack_leader_load.keys.sort.each do |rack|
+            puts [rack, rack_leader_load[rack], rack_leader_count[rack], rack_total_load[rack], rack_total_count[rack]].join("\t")
+          end
+          puts
+          puts
         end
         File.open(cache_file, 'w') do |f|
           f.puts JSON.dump(partition_sizes)
