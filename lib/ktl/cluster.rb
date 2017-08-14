@@ -90,30 +90,35 @@ module Ktl
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
     def calculate_load(regexp='.*')
       require 'kafka/clients'
+      require 'digest'
       with_zk_client do |zk_client|
-        plan_factory = if options.rack_aware
-          RackAwareShufflePlan
-        elsif options.rendezvous
-          RendezvousShufflePlan
-        else
-          nil
-        end
         topics = zk_client.all_topics
         topics = topics.filter { |t| !!t.match(Regexp.new(regexp)) }
 
-        if plan_factory
-          plan = plan_factory.new(zk_client, {
-            filter: Regexp.new(regexp),
-            brokers: options.brokers,
-            blacklist: options.blacklist,
-            replication_factor: options.replication_factor,
-            logger: logger,
-            log_plan: options.dryrun,
-          })
-          planned_replica_assignments = plan.generate(true)
-        else
-          current_replica_assignments = zk_client.replica_assignment_for_topics(topics)
-        end
+        assignments = []
+        assignments << ['Current', zk_client.replica_assignment_for_topics(topics)]
+
+        plan = ShufflePlan.new(zk_client, {
+          filter: Regexp.new(regexp),
+          brokers: options.brokers,
+          blacklist: options.blacklist,
+          replication_factor: options.replication_factor,
+          logger: logger,
+          log_plan: options.dryrun,
+        })
+        assignments << ['Random', plan.generate(true)]
+
+        plan = RackAwareShufflePlan.new(zk_client, {
+          filter: Regexp.new(regexp),
+          brokers: options.brokers,
+          blacklist: options.blacklist,
+          replication_factor: options.replication_factor,
+          logger: logger,
+          log_plan: options.dryrun,
+        })
+
+        assignments << ['Bound', plan.generate(true)]
+        # current_replica_assignments = zk_client.replica_assignment_for_topics(topics)
 
         topics_partitions = ScalaEnumerable.new(zk_client.partitions_for_topics(topics))
         topics_partitions = topics_partitions.sort_by(&:first)
@@ -130,38 +135,59 @@ module Ktl
 
         prop = {:group_id => 'ktl', :bootstrap_servers => bootstrap_servers}
         consumer = Kafka::Clients::Consumer.new(prop)
-
-        
-        leader_load = Hash.new(0)
-        leader_count = Hash.new(0)
-        replica_load = Hash.new(0)
-        replica_count = Hash.new(0)
-
-        topics_partitions.each do |tp|
-          topic, partitions = tp.elements
-          $stderr.puts "Processing #{topic}, #{partitions.size} partitions"
-          next if topic == '__consumer_offsets'
-          partitions.size.times do |partition|
-            partition_assignment = replica_assignments.apply(Kafka::TopicAndPartition.new(topic, partition))
-            tp = Kafka::Clients::TopicPartition.new(topic, partition)
-            consumer.assign([tp])
-            last = consumer.position(tp)
-            consumer.seek_to_beginning([tp])
-            first = consumer.position(tp)
-            assignments = Scala::Collection::JavaConversions.as_java_iterable(partition_assignment).to_a
-            leader = assignments.shift
-            partition_size = (last-first)
-            leader_load[leader] += partition_size
-            leader_count[leader] += 1
-            assignments.each do |replica|
-              replica_load[leader] += partition_size
-              replica_count[leader] += 1
+        partition_sizes = {}
+        cache_file = '.ktl.partition.cache.' + Digest::MD5.hexdigest("#{options.zookeeper}.#{regexp}")
+        if File.exists?(cache_file)
+          begin
+            cached_data = JSON.parse(File.read(cache_file))
+            cached_data.each do |partition, size|
+              partition_sizes[partition] = size
             end
+            $stderr.puts "Read #{cached_data.keys.size} partitions from #{cache_file}"
+          rescue JSON::ParserError => e
           end
         end
 
-        leader_load.keys.sort.each do |broker|
-          puts [broker, leader_load[broker], leader_count[broker], replica_load[broker], replica_count[broker]].join(";")
+        assignments.each do |(header, replica_assignments)|
+          puts header
+          leader_load = Hash.new(0)
+          leader_count = Hash.new(0)
+          replica_load = Hash.new(0)
+          replica_count = Hash.new(0)
+
+          topics_partitions.each do |tp|
+            topic, partitions = tp.elements
+            next if topic == '__consumer_offsets'
+            # $stderr.puts "Processing #{topic}, #{partitions.size} partitions"
+            partitions.size.times do |partition|
+              partition_assignment = Scala::Collection::JavaConversions.as_java_iterable(replica_assignments.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
+              partition_size = partition_sizes["#{topic}:#{partition}"] ||= begin
+                $stderr.puts "Looking up #{topic}:#{partition}"
+                tp = Kafka::Clients::TopicPartition.new(topic, partition)
+                consumer.assign([tp])
+                last = consumer.position(tp)
+                consumer.seek_to_beginning([tp])
+                first = consumer.position(tp)
+                # p [topic, partition, last, first]
+                last - first
+              end
+
+              leader = partition_assignment.shift
+              leader_load[leader] += partition_size
+              leader_count[leader] += 1
+              partition_assignment.each do |replica|
+                replica_load[leader] += partition_size
+                replica_count[leader] += 1
+              end
+            end
+          end
+
+          leader_load.keys.sort.each do |broker|
+            puts [broker, leader_load[broker], leader_count[broker], replica_load[broker], replica_count[broker]].join(";")
+          end
+        end
+        File.open(cache_file, 'w') do |f|
+          f.puts JSON.dump(partition_sizes)
         end
           # p 'sup'
       end
