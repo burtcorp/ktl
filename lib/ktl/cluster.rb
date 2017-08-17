@@ -88,8 +88,6 @@ module Ktl
     end
 
     desc 'calculate-load [REGEXP]', 'Create shuffle plan and calculate projected load per broker'
-    option :brokers, type: :array, desc: 'Broker IDs'
-    option :blacklist, type: :array, desc: 'Broker IDs to exclude'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
     option :rack_aware, aliases: %w[-a], type: :boolean, desc: 'Whether to use Rack aware + Rendezvous-hashing based shuffle'
     option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
@@ -102,23 +100,8 @@ module Ktl
         topics = topics.filter { |t| !!t.match(Regexp.new(regexp)) }
 
         assignments = []
-        assignments << ['Current', zk_client.replica_assignment_for_topics(topics)]
-        plans = [ShufflePlan, RackAwareShufflePlan, BoundedLoadShufflePlan, MinimalMovementShufflePlan]
-        plans.each do |plan_factory|
-          plan = plan_factory.new(zk_client, {
-            filter: Regexp.new(regexp),
-            brokers: options.brokers,
-            blacklist: options.blacklist,
-            replication_factor: options.replication_factor,
-            logger: logger,
-            log_plan: options.dryrun,
-          })
-          $stderr.puts "Generating #{plan_factory.name}"
-          assignments << [plan_factory.name, plan.generate(true)]
-        end
-
-        topics_partitions = ScalaEnumerable.new(zk_client.partitions_for_topics(topics))
-        topics_partitions = topics_partitions.sort_by(&:first)
+        current_assignment = zk_client.replica_assignment_for_topics(topics)
+        assignments << ['Current', current_assignment]
 
         bootstrap_servers = []
         brokers = ScalaEnumerable.new(zk_client.utils.get_all_brokers_in_cluster).to_a
@@ -131,6 +114,53 @@ module Ktl
           end
           rack_mappings[broker.id] = Kafka::Admin.get_broker_rack(zk_client, broker.id)
         end
+        racks = rack_mappings.values.uniq.sort
+        scale_down_brokers = racks.map {|rack| rack_mappings.select {|broker_id, broker_rack| broker_rack == rack}.first.first}
+        scale_down_size = brokers.size - scale_down_brokers.size
+        plans = [ShufflePlan, RackAwareShufflePlan, BoundedLoadShufflePlan, MinimalMovementShufflePlan]
+
+        plans.each do |plan_factory|
+          plan = plan_factory.new(zk_client, {
+            filter: Regexp.new(regexp),
+            replication_factor: options.replication_factor,
+            logger: logger,
+            log_plan: false,
+          })
+          $stderr.puts "Generating #{plan_factory.name}"
+          generated_plan = plan.generate(true)
+          if scale_down_size >= options.replication_factor
+            $stderr.puts "Generating scale down plan (without #{scale_down_brokers})"
+            plan = plan_factory.new(zk_client, {
+              filter: Regexp.new(regexp),
+              blacklist: scale_down_brokers,
+              current_assignment: generated_plan,
+              replication_factor: options.replication_factor,
+              logger: logger,
+              log_plan: false,
+            })
+            generated_scale_down_plan = plan.generate
+          end
+
+          assignments << [plan_factory.name, generated_plan, generated_scale_down_plan]
+        end
+
+        _, shuffle_plan, _ = assignments.select {|a| a.first == ShufflePlan.name}.first
+        if shuffle_plan && scale_down_size >= options.replication_factor
+          plan = MinimalMovementShufflePlan.new(zk_client, {
+            filter: Regexp.new(regexp),
+            blacklist: scale_down_brokers,
+            current_assignment: shuffle_plan,
+            replication_factor: options.replication_factor,
+            logger: logger,
+            log_plan: false,
+          })
+          generated_scale_down_plan = plan.generate
+
+          assignments << ['MinimalMovementFromShuffle', shuffle_plan, generated_scale_down_plan]
+        end
+
+        topics_partitions = ScalaEnumerable.new(zk_client.partitions_for_topics(topics))
+        topics_partitions = topics_partitions.sort_by(&:first)
 
         prop = {:group_id => 'ktl', :bootstrap_servers => bootstrap_servers}
         consumer = Kafka::Clients::Consumer.new(prop)
@@ -150,7 +180,7 @@ module Ktl
         end
 
 
-        assignments.each do |(header, replica_assignments)|
+        assignments.each do |(header, replica_assignments, scale_down_reassignments)|
           puts header
           leader_load = Hash.new(0)
           leader_count = Hash.new(0)
@@ -160,6 +190,14 @@ module Ktl
           rack_leader_count = Hash.new(0)
           rack_total_load = Hash.new(0)
           rack_total_count = Hash.new(0)
+          scale_leader_load = 0
+          scale_leader_count = 0
+          scale_total_load = 0
+          scale_total_count = 0
+          rebalance_leader_load = 0
+          rebalance_leader_count = 0
+          rebalance_total_load = 0
+          rebalance_total_count = 0
 
           topics_partitions.each do |tp|
             topic, partitions = tp.elements
@@ -189,6 +227,44 @@ module Ktl
                 rack_total_load[rack_mappings[replica]] += partition_size
                 rack_total_count[rack_mappings[replica]] += 1
               end
+
+              begin
+                current_topic_assignment = Scala::Collection::JavaConversions.as_java_iterable(current_assignment.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
+                old_leader = current_topic_assignment.first
+                if old_leader != leader
+                  if !current_topic_assignment.include?(leader)
+                    rebalance_leader_load += partition_size
+                  end
+                  rebalance_leader_count += 1
+                end
+                partition_assignment.each do |rebalance_replica|
+                  if !current_topic_assignment.include?(rebalance_replica)
+                    rebalance_total_load += partition_size
+                    rebalance_total_count += 1
+                  end
+                end
+              rescue Java::JavaUtil::NoSuchElementException => e
+              end
+
+              if scale_down_reassignments
+                begin
+                  partition_scale_down_assignment = Scala::Collection::JavaConversions.as_java_iterable(scale_down_reassignments.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
+                  new_leader = partition_scale_down_assignment.first
+                  if new_leader != leader
+                    if !partition_assignment.include?(new_leader)
+                      scale_leader_load += partition_size
+                    end
+                    scale_leader_count += 1
+                  end
+                  partition_scale_down_assignment.each do |scale_replica|
+                    if !partition_assignment.include?(scale_replica)
+                      scale_total_load += partition_size
+                      scale_total_count += 1
+                    end
+                  end
+                rescue Java::JavaUtil::NoSuchElementException => e
+                end
+              end
             end
             File.open(cache_file, 'w') do |f|
               f.puts JSON.dump(partition_sizes)
@@ -201,6 +277,8 @@ module Ktl
           rack_leader_load.keys.sort.each do |rack|
             puts [rack, rack_leader_load[rack], rack_leader_count[rack], rack_total_load[rack], rack_total_count[rack]].join("\t")
           end
+          puts ["Rebalance", rebalance_leader_load, rebalance_leader_count, rebalance_total_load, rebalance_total_count].join("\t")
+          puts ["Rescale", scale_leader_load, scale_leader_count, scale_total_load, scale_total_count].join("\t") if scale_down_reassignments
           puts
           puts
         end
