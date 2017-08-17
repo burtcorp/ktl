@@ -215,9 +215,9 @@ module Ktl
         rack_sorted_brokers = rack_order.map do |rack|
           rack_brokers = racks[rack].dup
           current_broker = current_assignment.select {|b| rack_for(b) == rack}.first
-          rack_brokers.delete(current_broker) if current_broker
+          active_broker = rack_brokers.delete(current_broker) if current_broker
           rack_brokers.shuffle!
-          rack_brokers.unshift(current_broker) if current_broker
+          rack_brokers.unshift(current_broker) if active_broker
           rack_brokers
         end
 
