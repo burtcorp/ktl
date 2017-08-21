@@ -340,6 +340,111 @@ module Ktl
           expect(zk_client).to have_received(:create_znode).with('/ktl/overflow/0', final_json)
         end
       end
+
+      context 'with multiple node migrations' do
+        let :reassignment do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 3, 4])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        let :current_assignment do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        let :duplicated_reassignment_step1 do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2, 3])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        let :duplicated_reassignment_step2 do
+          r = Scala::Collection::Map.empty
+          10.times.each do |partition|
+            topic_partition = Kafka::TopicAndPartition.new('topic1', partition)
+            replicas = scala_int_list([0, 1, 2, 3, 4])
+            r += Scala::Tuple.new(topic_partition, replicas)
+          end
+          r
+        end
+
+        before do
+          allow(zk_client).to receive(:replica_assignment_for_topics).and_return(current_assignment)
+        end
+
+        let :final_json do
+          zk_utils.format_as_reassignment_json(reassignment)
+        end
+
+        let :duplicated1_json do
+          zk_utils.format_as_reassignment_json(duplicated_reassignment_step1)
+        end
+
+        let :duplicated2_json do
+          zk_utils.format_as_reassignment_json(duplicated_reassignment_step2)
+        end
+
+        context 'step1' do
+          it 'creates a reassignment that duplicates to the first broker' do
+            reassigner.execute(reassignment)
+            expect(zk_client).to have_received(:reassign_partitions).with(duplicated1_json)
+          end
+
+          it 'creates an overflow that removes the reassigned broker from the duplicated partitions' do
+            reassigner.execute(reassignment)
+            expect(zk_client).to have_received(:create_znode).with('/ktl/overflow/0', final_json)
+          end
+        end
+
+        context 'step2' do
+          before do
+            allow(zk_client).to receive(:exists?).with('/ktl/overflow').and_return(true)
+            allow(zk_client).to receive(:get_children).with('/ktl/overflow').and_return(scala_list(%w[0]))
+            allow(zk_client).to receive(:read_data).with('/ktl/overflow/0').and_return([final_json])
+            allow(zk_client).to receive(:delete_znode)
+            allow(zk_client).to receive(:replica_assignment_for_topics).and_return(duplicated_reassignment_step1)
+          end
+
+          it 'creates a reassignment that duplicates to the next broker on the second step' do
+            reassigner.execute(reassignment)
+            expect(zk_client).to have_received(:reassign_partitions).with(duplicated2_json)
+          end
+
+          it 'creates an overflow that removes the reassigned broker from the duplicated partitions' do
+            reassigner.execute(reassignment)
+            expect(zk_client).to have_received(:create_znode).with('/ktl/overflow/0', final_json)
+          end
+        end
+
+        context 'step3' do
+          before do
+            allow(zk_client).to receive(:exists?).with('/ktl/overflow').and_return(true)
+            allow(zk_client).to receive(:get_children).with('/ktl/overflow').and_return(scala_list(%w[0]))
+            allow(zk_client).to receive(:read_data).with('/ktl/overflow/0').and_return([final_json])
+            allow(zk_client).to receive(:delete_znode)
+            allow(zk_client).to receive(:replica_assignment_for_topics).and_return(duplicated_reassignment_step2)
+          end
+
+          it 'creates a reassignment that duplicates to the next broker on the second step' do
+            reassigner.execute(reassignment)
+            expect(zk_client).to have_received(:reassign_partitions).with(final_json)
+          end
+        end
+      end
     end
   end
 end
