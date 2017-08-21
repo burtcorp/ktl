@@ -36,6 +36,7 @@ module Ktl
     option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
     option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
     option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
+    option :multi_step_migration, type: :boolean, default: true, desc: 'Perform migration in multiple steps, mirroring partitions to new brokers before removing the old'
     def migrate_broker
       with_zk_client do |zk_client|
         old_brokers, new_brokers = options.values_at(:from, :to)
@@ -57,6 +58,7 @@ module Ktl
     option :dryrun, aliases: %w[-d], desc: 'Output reassignment plan without executing'
     option :wait, aliases: %w[-w], type: :boolean, desc: 'Wait for all reassignments to finish'
     option :delay, type: :numeric, desc: 'Delay in seconds between continous reassignment iterations, default 5s'
+    option :multi_step_migration, type: :boolean, default: true, desc: 'Perform migration in multiple steps, mirroring partitions to new brokers before removing the old'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
         plan_factory = if options.rack_aware
@@ -117,9 +119,9 @@ module Ktl
 
     def create_reassigner(zk_client, options)
       if options.wait?
-        ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, delay: options.delay, shell: shell)
+        ContinousReassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, delay: options.delay, shell: shell, multi_step_migration: options.multi_step_migration)
       else
-        Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose)
+        Reassigner.new(zk_client, limit: options.limit, logger: logger, log_assignments: options.verbose, multi_step_migration: options.multi_step_migration)
       end
     end
   end
