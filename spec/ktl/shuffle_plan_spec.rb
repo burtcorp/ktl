@@ -323,6 +323,21 @@ module Ktl
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
         end
       end
+
+      context 'with broker missing rack' do
+        let :brokers do
+          [101, 102, 103]
+        end
+
+        before do
+          rack = Scala::Option.apply(nil.to_java)
+          @brokers[101] = Kafka::Admin::BrokerMetadata.new(101, rack)
+        end
+
+        it 'raises exception' do
+          expect { plan.generate }.to raise_error(RuntimeError, /Broker 101 is missing rack information/)
+        end
+      end
     end
   end
 end
