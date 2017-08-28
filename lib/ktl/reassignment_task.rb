@@ -27,7 +27,7 @@ module Ktl
         end
         if reassignment.size > 0
           if dryrun
-            @logger.info 'dryrun detected, skipping reassignment'
+            @logger.info "dryrun detected, skipping reassignment (#{reassignment.size} reassignments)"
           else
             @reassigner.execute(reassignment)
           end

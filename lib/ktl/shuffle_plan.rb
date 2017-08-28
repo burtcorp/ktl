@@ -28,7 +28,16 @@ module Ktl
           topic_partition = Kafka::TopicAndPartition.new(topic, partition)
           current_assignment = current_replica_assignments.apply(topic_partition)
           if current_assignment != replicas || include_all
-            @logger.info "Moving #{topic_partition.topic},#{topic_partition.partition} from #{current_assignment} to #{replicas}" if @log_plan
+            if @log_plan
+              c = ScalaEnumerable.new(current_assignment).to_a
+              r = ScalaEnumerable.new(replicas).to_a
+              moving = r - c
+              if moving.size > 0
+                @logger.info "Moving #{topic_partition.topic},#{topic_partition.partition} from #{c} to #{r} (#{moving.size} new brokers)"
+              else
+                @logger.info "Reassigning #{topic_partition.topic},#{topic_partition.partition} from #{c} to #{r}"
+              end
+            end
             reassignment_plan += Scala::Tuple.new(topic_partition, replicas)
           end
         end
