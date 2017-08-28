@@ -10,7 +10,11 @@ module Ktl
     end
 
     let :zk_client do
-      double(:zk_client)
+      double(:zk_client, utils: zk_utils)
+    end
+
+    let :zk_utils do
+      double(:zk_utils)
     end
 
     let :options do
@@ -31,6 +35,29 @@ module Ktl
         'topic2' => [brokers[0, replica_count].reverse, brokers[0, replica_count].reverse],
         'topic3' => [brokers.reverse[0, replica_count], brokers.reverse[0, replica_count]],
       }
+    end
+
+    let :zk_utils do
+      double(:zk_utils)
+    end
+
+    def generate_broker_metadata(broker_id)
+      @brokers[broker_id] ||= begin
+        index = broker_id % 10
+        rack_name = "rack-#{index}"
+        rack = Scala::Option.apply(rack_name.to_java)
+        Kafka::Admin::BrokerMetadata.new(broker_id, rack)
+      end
+    end
+
+    before do
+      @brokers = {}
+      allow(zk_client).to receive(:utils).and_return(zk_utils)
+      allow(Kafka::Admin).to receive(:get_broker_metadatas) do |zk_client, broker_list|
+        broker_list.map do |broker|
+          generate_broker_metadata(broker)
+        end
+      end
     end
 
     before do
@@ -230,31 +257,6 @@ module Ktl
   end
 
   describe RackAwareShufflePlan do
-    let :zk_utils do
-      double(:zk_utils)
-    end
-
-    def generate_broker_metadata(broker_id)
-      @brokers[broker_id] ||= begin
-        index = broker_id % 10
-        double("broker_#{index}", id: broker_id).tap do |broker|
-          rack_name = "rack-#{index}"
-          rack = double(rack_name, defined?: true, get: rack_name)
-          allow(broker).to receive(:rack).and_return(rack)
-        end
-      end
-    end
-
-    before do
-      @brokers = {}
-      allow(zk_client).to receive(:utils).and_return(zk_utils)
-      allow(Kafka::Admin).to receive(:get_broker_metadatas) do |zk_client, broker_list|
-        broker_list.map do |broker|
-          generate_broker_metadata(broker)
-        end
-      end
-    end
-
     describe '#generate' do
       include_examples 'a shuffle plan'
 
@@ -319,6 +321,21 @@ module Ktl
           broker_metadata = generate_broker_metadata(203)
           allow(broker_metadata.rack).to receive(:defined?).and_return(false)
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
+        end
+      end
+
+      context 'with broker missing rack' do
+        let :brokers do
+          [101, 102, 103]
+        end
+
+        before do
+          rack = Scala::Option.apply(nil.to_java)
+          @brokers[101] = Kafka::Admin::BrokerMetadata.new(101, rack)
+        end
+
+        it 'raises exception' do
+          expect { plan.generate }.to raise_error(RuntimeError, /Broker 101 is missing rack information/)
         end
       end
     end

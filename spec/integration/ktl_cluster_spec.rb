@@ -117,7 +117,7 @@ describe 'bin/ktl cluster' do
     end
 
     let :command_args do
-      %w[--from 0 --to 1]
+      %w[--from 0 --to 1 --multi_step_migration]
     end
 
     let :reassigned_partitions do

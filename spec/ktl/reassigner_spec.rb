@@ -281,7 +281,13 @@ module Ktl
         end
       end
 
-      context 'with a current assignment' do
+      context 'with multi step assignment' do
+        let :options do
+          {
+            multi_step_migration: true
+          }
+        end
+
         let :reassignment do
           r = Scala::Collection::Map.empty
           10.times.each do |partition|

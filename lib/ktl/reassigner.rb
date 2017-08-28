@@ -12,6 +12,7 @@ module Ktl
       @state_path = '/ktl/reassign'
       @logger = options[:logger] || NullLogger.new
       @log_assignments = !!options[:log_assignments]
+      @multi_step_migration = options[:multi_step_migration]
     end
 
     def reassignment_in_progress?
@@ -60,7 +61,7 @@ module Ktl
       next_step_assignments = Scala::Collection::Map.empty
       Scala::Collection::JavaConversions.as_java_iterable(reassignment_candidates).each do |pr|
         topic_and_partition, replicas = pr.elements
-        if step1_replicas = is_two_step_operation(topic_and_partition, replicas)
+        if @multi_step_migration && step1_replicas = is_two_step_operation(topic_and_partition, replicas)
           if step1_replicas.uniq != step1_replicas
             raise "Multiple replicas on the same broker, this should not happen... #{step1_replicas}"
           end

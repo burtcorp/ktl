@@ -13,7 +13,7 @@ module Ktl
       end
       from_racks = from_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
       to_racks = to_brokers.map {|broker_id| Kafka::Admin.get_broker_rack(zk_client, broker_id)}
-      if from_racks != to_racks
+      if from_racks != to_racks && from_racks.compact.any?
         raise ArgumentError, "Both broker lists must have the same rack setup. From: #{from_racks}, To: #{to_racks}"
       end
       @logger = options[:logger] || NullLogger.new
