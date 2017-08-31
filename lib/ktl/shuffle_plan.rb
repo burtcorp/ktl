@@ -48,7 +48,7 @@ module Ktl
     def generate_for_new_topic(topic, partition_count)
       brokers = select_brokers
       nr_replicas = @options[:replication_factor] || 1
-      assignment = assign_replicas_to_brokers(topic, brokers, partition_count, nr_replicas)
+      assignment = assign_replicas_to_brokers(topic, brokers, partition_count, nr_replicas, nil)
       assignment.map do |pr|
         partition, replicas = pr.elements
         Scala::Collection::JavaConversions.as_java_iterable(replicas).to_a
@@ -215,7 +215,11 @@ module Ktl
       max_partitions_per_broker = ((partition_count * replica_count) / brokers.size.to_f).ceil
       max_leader_per_broker = (partition_count / brokers.size.to_f).ceil
       partition_count.times do |partition|
-        current_assignment = Scala::Collection::JavaConversions.as_java_iterable(current_replica_assignments_for_topics.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
+        if current_replica_assignments_for_topics
+          current_assignment = Scala::Collection::JavaConversions.as_java_iterable(current_replica_assignments_for_topics.apply(Kafka::TopicAndPartition.new(topic, partition))).to_a
+        else
+          current_assignment = []
+        end
         rack_order = racks.keys.dup
         shift_leader_count = (partition % rack_order.length)
         move_leaders = rack_order.push(*rack_order.shift(shift_leader_count))
