@@ -140,60 +140,6 @@ module Ktl
     end
   end
 
-  class BoundedLoadShufflePlan < RendezvousShufflePlan
-    def initialize(*args)
-      super
-      @rack_mappings = {}
-      @leader_count = Hash.new(0)
-    end
-
-    def assign_replicas_to_brokers(topic, brokers, partition_count, replica_count, _)
-      if replica_count > brokers.size
-        raise ArgumentError, sprintf('replication factor: %i larger than available brokers: %i', replica_count, brokers.size)
-      end
-      result = []
-      racks = brokers.each_with_object({}) do |broker, acc|
-        rack = rack_for(broker)
-        acc[rack] ||= []
-        acc[rack] << broker
-      end
-      broker_count = Hash.new(0)
-      max_partitions_per_broker = ((partition_count * replica_count) / brokers.size.to_f).ceil
-      partition_count.times do |partition|
-        rack_order = racks.keys.dup
-        shift_leader_count = (partition % rack_order.length)
-        move_leaders = rack_order.push(*rack_order.shift(shift_leader_count))
-        rack_order = rack_order.take(replica_count)
-        rack_sorted_brokers = rack_order.map do |rack|
-          racks[rack].sort_by do |broker|
-            key = [partition, topic, broker].pack('l<a*l<')
-            Java::OrgJrubyUtil::MurmurHash.hash32(key.to_java_bytes, 0, key.bytesize, SEED)
-          end
-        end
-        selected = rack_sorted_brokers.map do |rack_brokers|
-          rack_selected_broker = rack_brokers.select {|broker| broker_count[broker] < max_partitions_per_broker}.first
-        end.sort_by do |broker_id|
-          @leader_count[broker_id]
-        end
-        selected.each do |allocated_broker|
-          broker_count[allocated_broker] += 1
-        end
-        @leader_count[selected.first] += 1
-        if selected.compact.length != replica_count
-          raise ArgumentError, "Unable to find enough available brokers "
-        end
-        result.push(Scala::Tuple.new(partition, Scala::Collection::JavaConversions.as_scala_iterable(selected).to_list))
-      end
-      result
-    end
-
-    private
-
-    def rack_for(broker_id)
-      @rack_mappings[broker_id] ||= Kafka::Admin.get_broker_rack(@zk_client, broker_id)
-    end
-  end
-
   class MinimalMovementShufflePlan < ShufflePlan
     def initialize(*args)
       super
