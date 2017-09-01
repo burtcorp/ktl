@@ -383,31 +383,43 @@ module Ktl
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
         end
 
-        # it 'distributes each topic evenly' do
-        #   result = Hash.new { |hash, key| hash[key] = Hash.new(0) }
-        #   plan.generate.foreach do |tuple|
-        #     key = tuple.first
-        #     value = tuple.last
-        #     ScalaEnumerable.new(value).to_a.each do |broker|
-        #       result[key.topic][broker] += 1
-        #     end
-        #   end
-        #   result.each do |topic, broker_counts|
-        #     expect(broker_counts.keys.length).to eql(brokers.length)
-        #     expect(broker_counts.values.max).to eql(2)
-        #   end
-        # end
+        it 'distributes each topic evenly' do
+          result = Hash.new { |hash, key| hash[key] = Hash.new(0) }
+          plan.generate.foreach do |tuple|
+            key = tuple.first
+            value = tuple.last
+            ScalaEnumerable.new(value).to_a.each do |broker|
+              result[key.topic][broker] += 1
+            end
+          end
+          result.each do |topic, broker_counts|
+            expect(broker_counts.keys.length).to eql(brokers.length)
+            expect(broker_counts.values.max).to eql(2)
+          end
+        end
 
-        # it 'distributes the leaders evenly across racks' do
-        #   leaders = Hash.new { |hash, key| hash[key] = Hash.new(0) }
-        #   each_reassignment(plan.generate) do |topic, partition, brokers|
-        #     leaders[topic][generate_broker_metadata(brokers.first).rack.get] += 1
-        #   end
-        #   leaders.each do |topic, rack_leadership|
-        #     expect(rack_leadership.keys.length).to eql(3)
-        #     expect(rack_leadership.values).to eql([1, 1, 1])
-        #   end
-        # end
+        context 'with existing allocations' do
+          let :assignments do
+            {
+              'topic1' => [[101, 102, 103], [102, 103, 101], [103, 101, 102], [101, 102, 103], [102, 103, 101], [103, 101, 102]],
+            }
+          end
+
+          it 'only moves overflowing partitions' do
+            each_reassignment(plan.generate) do |topic, partition, brokers|
+              expect(partition).to be_between(3, 5)
+              expect(brokers).to match_array([201, 202, 203])
+            end
+          end
+
+          it 'cycles leadership across racks' do
+            rack_leaders = {}
+            each_reassignment(plan.generate) do |topic, partition, brokers|
+              rack_leaders[partition] = brokers.first
+            end
+            expect(rack_leaders).to eql({3 => 201, 4 => 202, 5 => 203})
+          end
+        end
       end
 
       context 'with broker missing rack' do
