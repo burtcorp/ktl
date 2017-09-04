@@ -342,6 +342,12 @@ module Ktl
       end
 
       context 'with multiple node migrations' do
+        let :options do
+          {
+            multi_step_migration: true
+          }
+        end
+
         let :reassignment do
           r = Scala::Collection::Map.empty
           10.times.each do |partition|
