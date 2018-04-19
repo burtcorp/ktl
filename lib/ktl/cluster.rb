@@ -51,6 +51,7 @@ module Ktl
     option :blacklist, type: :array, desc: 'Broker IDs to exclude'
     option :rendezvous, aliases: %w[-R], type: :boolean, desc: 'Whether to use Rendezvous-hashing based shuffle'
     option :rack_aware, aliases: %w[-a], type: :boolean, desc: 'Whether to use Rack aware + Rendezvous-hashing based shuffle'
+    option :minimal_movement, aliases: %w[-m], type: :boolean, desc: 'Whether to use Minimal movement based shuffle'
     option :replication_factor, aliases: %w[-r], type: :numeric, desc: 'Replication factor to use'
     option :limit, aliases: %w[-l], type: :numeric, desc: 'Max number of partitions to reassign at a time'
     option :zookeeper, aliases: %w[-z], required: true, desc: 'ZooKeeper URI'
@@ -61,7 +62,9 @@ module Ktl
     option :multi_step_migration, type: :boolean, default: true, desc: 'Perform migration in multiple steps, mirroring partitions to new brokers before removing the old'
     def shuffle(regexp='.*')
       with_zk_client do |zk_client|
-        plan_factory = if options.rack_aware
+        plan_factory = if options.minimal_movement
+          MinimalMovementShufflePlan
+        elsif options.rack_aware
           RackAwareShufflePlan
         elsif options.rendezvous
           RendezvousShufflePlan

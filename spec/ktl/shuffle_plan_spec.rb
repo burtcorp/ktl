@@ -50,6 +50,18 @@ module Ktl
       end
     end
 
+    def each_reassignment(scala_reassignments)
+      ScalaEnumerable.new(scala_reassignments).each_with_object({}) do |t, result|
+        yield t.first.topic, t.first.partition, ScalaEnumerable.new(t.last).to_a
+      end
+    end
+
+    def apply_reassignments(scala_reassignments)
+      each_reassignment(scala_reassignments) do |topic, partition, brokers|
+        assignments[topic][partition] = brokers
+      end
+    end
+
     before do
       @brokers = {}
       allow(zk_client).to receive(:utils).and_return(zk_utils)
@@ -213,18 +225,6 @@ module Ktl
     describe '#generate' do
       include_examples 'a shuffle plan'
 
-      def each_reassignment(scala_reassignments)
-        ScalaEnumerable.new(scala_reassignments).each_with_object({}) do |t, result|
-          yield t.first.topic, t.first.partition, ScalaEnumerable.new(t.last).to_a
-        end
-      end
-
-      def apply_reassignments(scala_reassignments)
-        each_reassignment(scala_reassignments) do |topic, partition, brokers|
-          assignments[topic][partition] = brokers
-        end
-      end
-
       context 'when adding brokers' do
         before do
           apply_reassignments(plan.generate)
@@ -260,18 +260,6 @@ module Ktl
     describe '#generate' do
       include_examples 'a shuffle plan'
 
-      def each_reassignment(scala_reassignments)
-        ScalaEnumerable.new(scala_reassignments).each_with_object({}) do |t, result|
-          yield t.first.topic, t.first.partition, ScalaEnumerable.new(t.last).to_a
-        end
-      end
-
-      def apply_reassignments(scala_reassignments)
-        each_reassignment(scala_reassignments) do |topic, partition, brokers|
-          assignments[topic][partition] = brokers
-        end
-      end
-
       context 'when adding brokers' do
         before do
           apply_reassignments(plan.generate)
@@ -302,12 +290,26 @@ module Ktl
       end
 
       context 'with multiple brokers per rack' do
+        let :assignments do
+          {
+            'topic1' => [[301], [302], [303]],
+            'topic2' => [[301], [302], [303]],
+            'topic3' => [[301], [302], [303]],
+          }
+        end
+
         let :brokers do
           [201, 202, 203, 101, 102, 103]
         end
 
         let :replica_count do
           3
+        end
+
+        let :options do
+          {
+            replication_factor: replica_count
+          }
         end
 
         it 'chooses one broker per rack' do
@@ -321,6 +323,102 @@ module Ktl
           broker_metadata = generate_broker_metadata(203)
           allow(broker_metadata.rack).to receive(:defined?).and_return(false)
           expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
+        end
+      end
+
+      context 'with broker missing rack' do
+        let :brokers do
+          [101, 102, 103]
+        end
+
+        before do
+          rack = Scala::Option.apply(nil.to_java)
+          @brokers[101] = Kafka::Admin::BrokerMetadata.new(101, rack)
+        end
+
+        it 'raises exception' do
+          expect { plan.generate }.to raise_error(RuntimeError, /Broker 101 is missing rack information/)
+        end
+      end
+    end
+  end
+
+  describe MinimalMovementShufflePlan do
+    describe '#generate' do
+      include_examples 'a shuffle plan'
+
+      context 'with multiple brokers per rack' do
+        let :assignments do
+          {
+            'topic1' => [[301], [302], [303]],
+            'topic2' => [[301], [302], [303]],
+            'topic3' => [[301], [302], [303]],
+          }
+        end
+
+        let :brokers do
+          [201, 202, 203, 101, 102, 103]
+        end
+
+        let :replica_count do
+          3
+        end
+
+        let :options do
+          {
+            replication_factor: replica_count
+          }
+        end
+
+        it 'chooses one broker per rack' do
+          each_reassignment(plan.generate) do |topic, partition, brokers|
+            racks = brokers.map { |broker| generate_broker_metadata(broker).rack.get }
+            expect(racks.uniq.size).to eql(3)
+          end
+        end
+
+        it 'raises exception if broker is missing rack configuration' do
+          broker_metadata = generate_broker_metadata(203)
+          allow(broker_metadata.rack).to receive(:defined?).and_return(false)
+          expect { plan.generate }.to raise_error /Broker 203 is missing rack information/
+        end
+
+        it 'distributes each topic evenly' do
+          result = Hash.new { |hash, key| hash[key] = Hash.new(0) }
+          plan.generate.foreach do |tuple|
+            key = tuple.first
+            value = tuple.last
+            ScalaEnumerable.new(value).to_a.each do |broker|
+              result[key.topic][broker] += 1
+            end
+          end
+          result.each do |topic, broker_counts|
+            expect(broker_counts.keys.length).to eql(brokers.length)
+            expect(broker_counts.values.max).to eql(2)
+          end
+        end
+
+        context 'with existing allocations' do
+          let :assignments do
+            {
+              'topic1' => [[101, 102, 103], [102, 103, 101], [103, 101, 102], [101, 102, 103], [102, 103, 101], [103, 101, 102]],
+            }
+          end
+
+          it 'only moves overflowing partitions' do
+            each_reassignment(plan.generate) do |topic, partition, brokers|
+              expect(partition).to be_between(3, 5)
+              expect(brokers).to match_array([201, 202, 203])
+            end
+          end
+
+          it 'cycles leadership across racks' do
+            rack_leaders = {}
+            each_reassignment(plan.generate) do |topic, partition, brokers|
+              rack_leaders[partition] = brokers.first
+            end
+            expect(rack_leaders).to eql({3 => 201, 4 => 202, 5 => 203})
+          end
         end
       end
 

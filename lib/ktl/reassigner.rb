@@ -93,7 +93,7 @@ module Ktl
           item_replicas = Scala::Collection::JavaConversions.as_java_iterable(item.last).to_a.uniq
           diff_replicas = replicas - item_replicas
           unless diff_replicas.empty?
-            transition_replicas = item_replicas + diff_replicas
+            transition_replicas = item_replicas + diff_replicas.take(1)
             return transition_replicas
           end
         end
